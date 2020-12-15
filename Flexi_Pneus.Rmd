@@ -1,0 +1,175 @@
+---
+title: "Flexi Pneus"
+runtime: shiny
+output:
+  flexdashboard::flex_dashboard:
+    favicon: "flavicon.jpeg"
+    source_code: embed
+    theme: spacelab
+    css: netflex_lightened.css
+    social: "menu" 
+    vertical_layout: fill
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+# Packages loading. 
+library(shiny)
+library(shinythemes)
+library(shinydashboard)
+library(shinydashboardPlus)
+library(shinyjs)
+library(shinyBS)
+library(shinyLP)
+library(shinycssloaders)
+library(shinybusy)
+library(shinyjs)
+library(flexdashboard)
+library(vov)
+library(leaflet)
+library(viridis)
+library(shinyWidgets)
+library(waiter)
+library(htmltools)
+library(tidyverse)
+```
+
+
+```{r global, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# Data loading 
+## Main dataset 
+mydata <- read.csv("netflex5.csv")
+mydata$Show_type[is.na(mydata$Show_type)] <- 'undefined'
+mydata$Genre[is.na(mydata$Genre)] <- 'undefined'
+
+## Matrix of genres 
+#mat <- read.csv("src/data/mat.csv",row.names = 1, encoding = "utf8")
+
+## Shapefile data disabled 
+# countriesborders <- readOGR("src/TM_WORLD_BORDERS_SIMPL-0.3.shp")
+
+```
+
+
+#  Home Page {data-orientation=rows}     
+
+Row 
+-------------------------------------
+
+```{r} 
+# Busy bar for UX enhancement 
+add_busy_bar(timeout = 400, color = "#c7636a", centered = FALSE, height = "6px")
+# Background image adding. Origin : https://hcdevilsadvocate.com/ae/2019/01/25/best-new-netflix-releases-to-binge-during-the-cold-weather/
+tags$img(
+     src = "img/carto_pneu.jpg", 
+     style = 'position: fixed'
+   )
+```
+
+### ValBox {data-height=800}
+
+```{r}
+# Disclaimer : The following jumbotron function is an adpatation of Jumbotron() from the shinyLP package (Copyright holder : Jasmine Dumas // https://github.com/cran/shinyLP). We adapted it  to receive a btn link and enhanced the rendering.
+
+# Jumbotron 
+## Jumbotron function for Landing page 
+my_jumbotron <- function(header , content, button = TRUE, button_link, ...){
+  
+  button_label = c(...)
+  if (button){
+    div(class = "jumbotron",
+        h1(header), p(content), p(a(href = button_link ,target="_blank",
+        class = "btn btn-primary btn-lg button", role= 'button', button_label)))
+} else {
+    div(class = "jumbotron", h1(header), p(content))
+}
+  
+}
+
+## Fixed landing page fading in, with a btn link to our github reporsitory 
+fixedPage(
+use_vov(),
+    fade_in_up(
+my_jumbotron(header="Welcome to Flexi Pneus", content="Please call attention to important features of the app", button =  "True", button_link="https://github.com/sow-ibrahima/tech_challenge", button_Label = "Check our repo'"))
+)
+```
+
+
+Row {data-height=150}
+-------------------------------------
+
+Row 
+-------------------------------------
+```{r}
+# Empty row like this help better organize the landing page 
+```
+
+### Profiles
+```{r}
+# ValueBox displaying the number of unique profiles used in our app 
+renderValueBox({
+
+valueBox(
+                tags$p(length(unique(mydata$Profile)),
+                style = "font-size: 200%; color:	#FFFFFF;"),
+                tags$q("Netflix Profiles",style = "font-size: 150%; color:	#FFFFFF;"),
+                icon ="fa-users",color = "green")
+
+})
+```
+
+
+### Movies seen
+```{r}
+# ValueBox displaying the number of movies seen by profiles in our app 
+renderValueBox({
+  
+valueBox(
+                tags$p(table(mydata$Show_type=="movie")[2],
+                style = "font-size: 200%; color:	#FFFFFF;"),
+                tags$q("Movies seen",style = "font-size:150%; color:	#FFFFFF;"),
+                icon ="fa-video", color = "orange")
+
+})
+```
+
+### Series seen
+```{r}
+# ValueBox displaying the number of series seen by profiles in our app 
+renderValueBox({
+  
+valueBox(
+                tags$p(table(mydata$Show_type=="series")[2],
+                style = "font-size: 200%; color:#FFFFFF;"),
+                tags$q("Series seen",style = "font-size: 150%; color:	#FFFFFF;"),
+                icon ="fa-film", color="red")
+
+  })
+```
+
+Row
+-------------------------------------
+```{r}
+```
+
+# Explanatory visualization {data-orientation=column}
+## Input {.sidebar}
+
+## Column {.tabset}
+
+### Temporal viz 
+### Temporal viz 
+### Temporal viz 
+# Analysis {data-orientation=column}
+## Input {.sidebar}
+
+## Column {.tabset}
+
+### Temporal viz 
+### Temporal viz 
+### Temporal viz 
+# Data sources {data-orientation=column}
+Row {.tabset}
+-------------------------------------
+### Main data source 
