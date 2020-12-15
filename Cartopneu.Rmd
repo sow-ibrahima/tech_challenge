@@ -10,6 +10,7 @@ library(tidyverse)
 library(readr)
 library(data.table)
 library(stringr)
+getwd()
 ```
 
 
@@ -163,7 +164,7 @@ for (i in 1:nrow(sensor)){
 names(sensor)[1] <- "date_time"
 mydf <- merge(sensor, logs, by="date_time")
 names(mydf)[2] <- "value"
-mydf
+dim(mydf)
 ```
 
 ```{r}
@@ -175,13 +176,43 @@ for (i in 1:nrow(mydf)) {
 
 ```{r}
 library(leaflet)
-map <- leaflet(mydf[1:20000]) %>% addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
+map <- leaflet(mydf) %>% addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
                       options = providerTileOptions(noWrap = TRUE)) %>%
        addMarkers()
 map
 ```
 
+### Plot_ly 
+```{r}
+library(plotly)
+```
 
+```{r}
+fg <- plot_ly(x=~mydf$date_time, y=mydf$value, alpha = 0.4,
+              mode = 'markers', text = paste("days from today"))
+fg
+```
 
+```{r}
+my_parcelles <- read_csv("P2/GIS_parcelles.csv");my_parcelles
+roads <- read_csv("P2/GIS_routes.csv");roads
+```
+
+```{r}
+names(my_parcelles)[1] <- "date_time"
+names(roads)[1] <- "date_time"
+  
+names(my_parcelles)[2] <- "date_gnss"
+names(roads)[2] <- "date_gnss"
+  
+names(my_parcelles)[3] <- "time_gnss"
+names(roads)[3] <- "time_gnss"
+my_parcelles
+roads
+```
+
+```{r}
+
+```
 
 
