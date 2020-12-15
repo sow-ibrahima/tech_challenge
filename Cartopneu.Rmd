@@ -193,9 +193,10 @@ fg <- plot_ly(x=~mydf$date_time, y=mydf$value, alpha = 0.4,
 fg
 ```
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 my_parcelles <- read_csv("P2/GIS_parcelles.csv");my_parcelles
 roads <- read_csv("P2/GIS_routes.csv");roads
+mydf
 ```
 
 ```{r}
@@ -207,12 +208,28 @@ names(roads)[2] <- "date_gnss"
   
 names(my_parcelles)[3] <- "time_gnss"
 names(roads)[3] <- "time_gnss"
-my_parcelles
+table(my_parcelles$`ID Culture`)
 roads
 ```
 
 ```{r}
-
+mydf$date_time <- as.character(mydf$date_time)
+my_parcelles$date_time <- as.character(my_parcelles$date_time)
 ```
 
+```{r}
+join_parcelles <- merge(mydf, my_parcelles, by="date_time")
+table(join_parcelles$`ID Culture`)
+```
+
+
+
+```{r}
+join_parcelles$date_time <- as.POSIXct(join_parcelles$date_time)
+
+fg <- plot_ly(x=~join_parcelles$date_time, y=~join_parcelles$value, alpha = 0.4,
+              colors = ~join_parcelles$`ID Culture`,
+              mode = 'markers', text = paste("days from today"))
+fg
+```
 
