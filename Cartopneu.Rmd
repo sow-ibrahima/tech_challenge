@@ -79,7 +79,7 @@ mydata_p2$value <- gsub("}", "", mydata_p2$value)
 head(mydata_p2)
 ```
 
-## Importing simple log files 
+## Importing simple log files  
 
 ```{r message=FALSE, warning=FALSE}
 #simple_log_P1 <- fread("P1/simple-log.txt",  header = F)
@@ -87,7 +87,6 @@ simple_log_P2 <- fread("P2/simple-log.txt",  header = F)
 
 #simple_log_P1$V1 <- substr(simple_log_P1$V1, 1, 23)
 simple_log_P2$V1 <- substr(simple_log_P2$V1, 1, 19)
-
 
 names(simple_log_P2)[1] <- "date_time"
 names(simple_log_P2)[2] <- "date_gnss"
@@ -186,6 +185,7 @@ map
 ### Plot_ly 
 ```{r}
 library(plotly)
+mydf$date_time <- as.POSIXct(mydf$date_time)
 ```
 
 ```{r}
@@ -196,8 +196,7 @@ fg
 
 ```{r message=FALSE, warning=FALSE}
 my_parcelles <- read_csv("P2/GIS_parcelles.csv");my_parcelles
-roads <- read_csv("P2/GIS_routes.csv");roads
-mydf
+roads <- fread("P2/roads_p2.csv");roads
 ```
 
 ```{r}
@@ -209,6 +208,16 @@ names(roads)[2] <- "date_gnss"
   
 names(my_parcelles)[3] <- "time_gnss"
 names(roads)[3] <- "time_gnss"
+
+names(my_parcelles)[4] <- "time_gnss"
+names(roads)[4] <- "time_gnss"
+
+names(my_parcelles)[5] <- "time_gnss"
+names(roads)[5] <- "time_gnss"
+
+names(my_parcelles)[6] <- "time_gnss"
+names(roads)[6] <- "time_gnss"
+
 table(my_parcelles$`ID Culture`)
 roads
 ```
@@ -236,7 +245,7 @@ fg
 
 - Min/Max locaux avec dérivés 
 - XXX
-
+- Histogramme // 2 sortes de pics 
 ```{r}
 library(pspline)
 deriv_x <- predict(sm.spline(join_parcelles$date_time, as.numeric(join_parcelles$value)), time, 1)
@@ -260,6 +269,10 @@ fg1 <- plot_ly(x=~df$date_time, y=~df$value, alpha = 0.4,
 fg1
 ```
 
+```{r}
+roads
+```
+
 
 ```{r}
 library(pracma)
@@ -268,21 +281,22 @@ pracma::findpeaks(as.numeric(mydata_p2[1:100,]$value))
 ```
 
 ```{r}
-subset_df <- mydata_p2[1:1000,]
+subset_df <- mydata_p2[1:100,]
 subset_df$sensor_time <- as.POSIXct(subset_df$sensor_time)
 
-#y <- as.POSIXct(x, format = "%Y-%m-%d %H:%M:%OS3")
-#d <- as.POSIXct(sensor_clean_2$time)
 subset_df$sensor_time <- format(subset_df$sensor_time,"%Y-%m-%d %H:%M:%OS3")
 
 
 fg <- plot_ly(x=~subset_df$sensor_time, y=~subset_df$value, alpha = 0.4,
               mode = 'markers', text = paste("days from today"))
+fg  %>%
+layout(paper_bgcolor='#5875D5',
+       plot_bgcolor='#5875D5')
 fg
 ```
 
-- largeur pic : vitesse (intervalle pic) // compensation de la perte de donnée due à la déformation 
-
+- largeur pic : vitesse (intervale pic) // compensation de la perte de données due à la déformation 
+- graphes de validation 
 
 - this first step : bruit créer par le dispositif (caractériser stabilité dans le temps de ces indicateurs/ est-ce influencé par les variations d'altitudes, chngmnt de rang / aller-retour) 
    // graph maxi-amplitudes-bien conprendre leur variabilité- séparation route/parcelles-axé sur montrer la variabilité soit par type de revêtement soit par structure spatiale dans les rangs 
