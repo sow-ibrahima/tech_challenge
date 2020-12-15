@@ -229,7 +229,57 @@ join_parcelles$date_time <- as.POSIXct(join_parcelles$date_time)
 
 fg <- plot_ly(x=~join_parcelles$date_time, y=~join_parcelles$value, alpha = 0.4,
               colors = ~join_parcelles$`ID Culture`,
-              mode = 'markers', text = paste("days from today"))
+              mode = 'lines', text = paste("days from today"))
 fg
 ```
 
+- Min/Max locaux avec dérivés 
+- XXX
+
+```{r}
+library(pspline)
+deriv_x <- predict(sm.spline(join_parcelles$date_time, as.numeric(join_parcelles$value)), time, 1)
+```
+
+```{r}
+der <-  deriv(join_parcelles$value, join_parcelles$date_time)
+```
+```{r}
+library(xts)
+d1 <- xts(splinefun(join_parcelles$date_time, join_parcelles$value)(join_parcelles$date_time, 1), join_parcelles$date_time)
+df <- cbind(join_parcelles, d1)
+
+df$value <- as.numeric(df$value)
+df$date_time <- as.POSIXct(df$date_time)
+```
+
+```{r}
+fg <- plot_ly(x=~df$date_time, y=~df$value, alpha = 0.4,
+              mode = 'lines', text = paste("days from today"))
+fg
+fg1 <- plot_ly(x=~df$date_time, y=~df$value, alpha = 0.4,
+              mode = 'lines', text = paste("days from today"))
+
+fg1
+```
+
+```{r}
+xxxx <- which(diff(diff(join_parcelles$value, differences=2)))
+```
+```{r}
+library(data.table)
+maximums <- function(x) which(x - shift(x, 1) > 0  & x - shift(x, 1, type='lead') > 0)
+minimums <- function(x) which(x - shift(x, 1) < 0  & x - shift(x, 1, type='lead') < 0)
+```
+
+```{r}
+maxs <- which(maximums(join_parcelles$value))
+mins <- which(minimums(join_parcelles$value))
+```
+
+```{r}
+table(is.na(mydata_p2))
+pracma::findpeaks(mydata_p2$value)
+```
+
+- largeur pic : vitesse (intervalle pic) // compensation de la perte de donnée due à la déformation 
