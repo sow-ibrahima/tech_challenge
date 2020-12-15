@@ -1,9 +1,10 @@
 ---
-title: "CartoPneu"
+title: "Carto_pneu_remedy"
 author: "Ibrahima SOW"
 date: "12/14/2020"
 output: html_document
 ---
+
 
 ```{r message=FALSE, warning=FALSE}
 library(tidyverse)
@@ -12,7 +13,6 @@ library(data.table)
 library(stringr)
 getwd()
 ```
-
 
 ```{r}
 sensor_1_P1 <- fread("P1/sensor_1.csv", header = F, quote = "")
@@ -54,6 +54,7 @@ mydata_p1 <- rbind(sensor_1_P1, sensor_2_P1)
 mydata_p1
 ```
 
+## Second passage
 ```{r}
 mydata_p2 <- fread("P2/sensor_1.csv", header = F, quote = "")
 names(mydata_p2)[1] <- "sensor_id"
@@ -66,7 +67,7 @@ mydata_p2
 ```{r}
 mydata_p2$sensor_id <- substr(mydata_p2$sensor_id, 14, 14)
 
-mydata_p2$sensor_time <- substr(mydata_p2$sensor_time, 16, 34)
+mydata_p2$sensor_time <- substr(mydata_p2$sensor_time, 16, 39)
 mydata_p2$sensor_time <- gsub("T", " ", mydata_p2$sensor_time)
 
 mydata_p2$value <- substr(mydata_p2$value, 10, 14)
@@ -128,10 +129,11 @@ logs$date_time <- as.POSIXct(logs$date_time)
 #   sensor_clean$associate=j
 # }
 df2 <- mydata_p2
-df2$value <- as.numeric(df2$value)
+
 ```
 
 ```{r}
+df2$value <- as.numeric(df2$value)
 df2 %>%
   group_by(sensor_time) %>%
   summarise_each(median, value)
@@ -146,16 +148,16 @@ sensor <- aggregate(as.numeric(mydata_p2$value),
 ```{r}
 #mydata_p2X <- unique(mydata_p2)
 
-for (i in 1:nrow(sensor)){
-  
-  if(sensor$sensor_time[i] == logs$date_time[i]){
-    
-     sensor$lat[i] <- logs$latitude[i]
-     sensor$long[i] <- logs$longitude[i]
-     sensor$long[i] <- logs$speed[i]
-     print(i)
-}
-}
+# for (i in 1:nrow(sensor)){
+#   
+#   if(sensor$sensor_time[i] == logs$date_time[i]){
+#     
+#      sensor$lat[i] <- logs$latitude[i]
+#      sensor$long[i] <- logs$longitude[i]
+#      sensor$long[i] <- logs$speed[i]
+#      print(i)
+# }
+# }
 #length(unique(simple_log$date_time))
 ```
 
@@ -164,13 +166,12 @@ for (i in 1:nrow(sensor)){
 names(sensor)[1] <- "date_time"
 mydf <- merge(sensor, logs, by="date_time")
 names(mydf)[2] <- "value"
-dim(mydf)
 ```
 
 ```{r}
-for (i in 1:nrow(mydf)) {
-    map$marker(c(mydf[i, "latitude"], mydf[i, "longitude"]), bindPopup = mydf[i, "location"])
-}
+# for (i in 1:nrow(mydf)) {
+#     map$marker(c(mydf[i, "latitude"], mydf[i, "longitude"]), bindPopup = mydf[i, "location"])
+# }
 ```
 
 
@@ -178,7 +179,7 @@ for (i in 1:nrow(mydf)) {
 library(leaflet)
 map <- leaflet(mydf) %>% addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
                       options = providerTileOptions(noWrap = TRUE)) %>%
-       addMarkers()
+       addCircleMarkers()
 map
 ```
 
@@ -241,9 +242,7 @@ library(pspline)
 deriv_x <- predict(sm.spline(join_parcelles$date_time, as.numeric(join_parcelles$value)), time, 1)
 ```
 
-```{r}
-der <-  deriv(join_parcelles$value, join_parcelles$date_time)
-```
+
 ```{r}
 library(xts)
 d1 <- xts(splinefun(join_parcelles$date_time, join_parcelles$value)(join_parcelles$date_time, 1), join_parcelles$date_time)
@@ -251,9 +250,7 @@ df <- cbind(join_parcelles, d1)
 
 df$value <- as.numeric(df$value)
 df$date_time <- as.POSIXct(df$date_time)
-```
 
-```{r}
 fg <- plot_ly(x=~df$date_time, y=~df$value, alpha = 0.4,
               mode = 'lines', text = paste("days from today"))
 fg
@@ -263,23 +260,37 @@ fg1 <- plot_ly(x=~df$date_time, y=~df$value, alpha = 0.4,
 fg1
 ```
 
+
 ```{r}
-xxxx <- which(diff(diff(join_parcelles$value, differences=2)))
-```
-```{r}
-library(data.table)
-maximums <- function(x) which(x - shift(x, 1) > 0  & x - shift(x, 1, type='lead') > 0)
-minimums <- function(x) which(x - shift(x, 1) < 0  & x - shift(x, 1, type='lead') < 0)
+library(pracma)
+mydata_p2$value <- as.numeric(mydata_p2$value)
+pracma::findpeaks(as.numeric(mydata_p2[1:100,]$value))
 ```
 
 ```{r}
-maxs <- which(maximums(join_parcelles$value))
-mins <- which(minimums(join_parcelles$value))
-```
+subset_df <- mydata_p2[1:1000,]
+subset_df$sensor_time <- as.POSIXct(subset_df$sensor_time)
 
-```{r}
-table(is.na(mydata_p2))
-pracma::findpeaks(mydata_p2$value)
+#y <- as.POSIXct(x, format = "%Y-%m-%d %H:%M:%OS3")
+#d <- as.POSIXct(sensor_clean_2$time)
+subset_df$sensor_time <- format(subset_df$sensor_time,"%Y-%m-%d %H:%M:%OS3")
+
+
+fg <- plot_ly(x=~subset_df$sensor_time, y=~subset_df$value, alpha = 0.4,
+              mode = 'markers', text = paste("days from today"))
+fg
 ```
 
 - largeur pic : vitesse (intervalle pic) // compensation de la perte de donnée due à la déformation 
+
+
+- this first step : bruit créer par le dispositif (caractériser stabilité dans le temps de ces indicateurs/ est-ce influencé par les variations d'altitudes, chngmnt de rang / aller-retour) 
+   // graph maxi-amplitudes-bien conprendre leur variabilité- séparation route/parcelles-axé sur montrer la variabilité soit par type de revêtement soit par structure spatiale dans les rangs 
+   // classification des valeurs par vitesses (mettre route VS parcelles) -> faire des classes de vitesses bien disjointes
+
+- after : est-ce que intensité variation de poids générée par la charge est masquée ou pas. 
+
+
+
+
+
