@@ -158,15 +158,7 @@ roads_map <- leaflet(road_sec) %>%
              addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
              options = providerTileOptions(noWrap = TRUE)) %>%
   
-                 addCircleMarkers(radius = ~(value-350), color = ~pal(value), 
-                        fillColor = ~pal(value), opacity = 0.2,
-                        label = paste(road_sec$value))
-
-roads_map <- leaflet(road_sec) %>% 
-             addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
-             options = providerTileOptions(noWrap = TRUE)) %>%
-  
-                 addCircleMarkers(radius = ~0.1*value, color = ~pal(value), 
+                 addCircleMarkers(radius = ~0.08*(value-250), color = ~pal(value), 
                         fillColor = ~pal(value), opacity = 0.2,
                         label = paste(road_sec$value))
 roads_map
@@ -174,26 +166,179 @@ roads_map
 
 <<<<<<< HEAD
 -------------------
- 
-Val's 
+##Récupération pics road
+
+Reconnaissance des pics et de leurs caractéristiques.
+
 
 ```{r}
-road_sec$value
+#road_sec$value
 library(quantmod)
-maxindex=findPeaks(road_sec$value[30:200])
-minindex=findValleys(road_sec$value[30:200])
+part_road_sec=road_sec #road_sec, seulement l'allé de la seconde section de la route
+maxindex=findPeaks(part_road_sec$value)
+minindex=findValleys(part_road_sec$value)
 ```
 
 ```{r}
-minmax=data.frame(value=road_sec$value)
+minmax=data.frame(value=part_road_sec$value)
+minmax$time=part_road_sec$sensor_time
+minmax$id=part_road_sec$id
+minmax$vitesse=part_road_sec$speed
 minmax$min=0
 minmax$max=0
-minmax$min[minindex]=1
-minmax$max[maxindex]=1
+minmax$min[minindex-1]=1 #les finds décalent de 1
+minmax$max[maxindex-1]=1
 
-road_sec$value
+#part_road_sec$value
 
 ```
+
+Seuil (ce seuil doit différencier les pics et les "plateau").
+```{r}
+minmax$max[which(minmax$value<320)]=0
+minmax$min[which(minmax$value>320)]=0
+```
+
+
+On fait des bandes par min. Chaque pic devrait être sur une bande (certaines bandes ne contiennent pas de pic, pas gênant
+ car elles n'ont normalement pas de max si le seuil est bon).
+```{r}
+minmax$bande_min=0
+for (i in 1:length(minmax$min)){
+  minmax$bande_min[i]=sum(minmax$min[1:i])
+}
+```
+
+
+Trouver le max du pic.
+```{r}
+#which(minmax$max[which(minmax$bande_min==770)]==1)
+#which(minmax$bande_min==770)[which(minmax$max[which(minmax$bande_min==770)]==1)]
+minmax$MAX=0
+for (i in 1: length(minmax$value)){
+  minmax$MAX[which(minmax$bande_min==i)[which(minmax$max[which(minmax$bande_min==i)]==1)][which.max(minmax$value[which(minmax$bande_min==i)[which(minmax$max[which(minmax$bande_min==i)]==1)]])]]=1 #tkt.
+}
+
+
+
+```
+
+Trouver les minimums jouxtant chaque pic.
+```{r}
+minmax$MIN=0
+minmax$MING=0
+minmax$MIND=0
+temp=minmax$bande_min[which(minmax$MAX==1)]
+for (i in temp){
+  minmax$MIN[which(minmax$bande_min==i)[1]]=1
+  minmax$MING[which(minmax$bande_min==i)[1]]=1
+  minmax$MIN[which(minmax$bande_min==i)[length(which(minmax$bande_min==i))]+1]=1
+  minmax$MIND[which(minmax$bande_min==i)[length(which(minmax$bande_min==i))]+1]=1
+} #Pas parfait, modifier si temps
+
+
+
+
+
+```
+
+un min un max un min | un min un max un min | min max min |min max min
+On a donc un pic définit par son max, avec un minimum de chaque côté du pic.
+```{r}
+minmax$id_pic=0
+for (i in 1:length(minmax$min)){
+  minmax$id_pic[i]=sum(minmax$MING[1:i])
+}
+
+```
+
+Un point aberrant peut être à la fois ming et mind (problème = il passe seuillage). Les pics liés ne sont donc en réalité pas de vrais pics.
+
+```{r}
+
+
+for (i in minmax$id_pic[which(minmax$MING==1 & minmax$MIND==1)]-1){
+  sup=which.min(c(minmax$value[which(minmax$MAX==1 & minmax$id_pic==i)],minmax$value[which(minmax$MAX==1 & minmax$id_pic==i+1)]))
+minmax$MAX[c(which(minmax$MAX==1 & minmax$id_pic==i),which(minmax$MAX==1 & minmax$id_pic==i+1))[sup]]=0
+}
+
+
+#Suppression des minimum aberrants.
+minmax$MIN[which(minmax$MING==1 & minmax$MIND==1)]=0
+minmax$MING[which(minmax$MING==1 & minmax$MIND==1)]=0
+minmax$MIND[which(minmax$MING==1 & minmax$MIND==1)]=0
+
+```
+
+
+
+id_pic après correction des aberrants.
+```{r}
+minmax$id_pic=0
+for (i in 1:length(minmax$min)){
+  minmax$id_pic[i]=sum(minmax$MING[1:i])
+}
+
+```
+
+
+
+```{r}
+data_pic=data.frame(id_pic=1:max(minmax$id_pic))
+data_pic$vitesse=0
+data_pic$soil_type="Route"
+
+data_pic$ming_value=0
+data_pic$ming_time=minmax$time[1]
+
+data_pic$max_value=0
+data_pic$max_time=minmax$time[1]
+
+data_pic$mind_value=0
+data_pic$mind_time=minmax$time[1]
+
+
+for (i in 1:max(minmax$id_pic)){
+  data_pic$ming_value[i]= minmax$value[which(minmax$id_pic==i)[1]]
+  data_pic$ming_time[i]= minmax$time[which(minmax$id_pic==i)[1]]
+  
+  data_pic$max_value[i]= minmax$value[which(minmax$id_pic==i)[which(minmax$MAX[which(minmax$id_pic==i)]==1)]]
+  data_pic$max_time[i]= minmax$time[which(minmax$id_pic==i)[which(minmax$MAX[which(minmax$id_pic==i)]==1)]]
+  data_pic$vitesse[i]=minmax$vitesse[which(minmax$id_pic==i)[which(minmax$MAX[which(minmax$id_pic==i)]==1)]]
+  
+  data_pic$mind_value[i]= minmax$value[which(minmax$id_pic==i)[which(minmax$MIND[which(minmax$id_pic==i)]==1)]]
+  data_pic$mind_time[i]= minmax$time[which(minmax$id_pic==i)[which(minmax$MIND[which(minmax$id_pic==i)]==1)]]
+}
+
+data_pic$hauteur=data_pic$max_value-apply(rbind(data_pic$ming_value, data_pic$mind_value), 2, min)
+
+
+data_pic$largeur= minmax$time[1] #Pour récupérer le format POSIX, là. 
+data_pic$largeur= difftime( data_pic$mind_time, data_pic$ming_time, units="secs" ) #largeur en secondes
+
+```
+
+```{r}
+write.csv(data_pic, "data_pic_P2_road_2_aller.csv", row.names=F)
+```
+
+Copie du plotly pour avoir un visu
+```{r message=FALSE, warning=FALSE}
+library(plotly)
+```
+
+```{r}
+minmax$color=minmax$MAX + 2*minmax$MIN
+fg <- plot_ly(x=~minmax$time, y=minmax$value, alpha = 0.4,
+               text = minmax$id, color=as.character(minmax$color))
+fg
+
+fg <- plot_ly(x=~minmax$time, y=minmax$value, alpha = 0.4,
+               text = paste(minmax$id, "  ", minmax$id_pic), color=as.character(minmax$id_pic))
+fg
+
+```
+
 
 -------------------
 
@@ -216,7 +361,7 @@ fg1
 
 
 ```{r}
-road_sec$value
+#road_sec$value
 
 library(quantmod)
 maxindex=findPeaks(road_sec$value[30:200])
@@ -228,9 +373,6 @@ minmax$max=0
 
 minmax$min[minindex]=1
 minmax$max[maxindex]=1
-
-
-#ICI
 
 
 ```
@@ -289,17 +431,23 @@ fields_querer <- function (fieldId){ # Oui oui querer
       subset_sensor$vitesse[i] = field$speed[j]
       subset_sensor$field_id[i] = field$field_id[j]
       subset_sensor$soil_type[i] = field$soil_type[j]
-      print(i) #debugging tool, if needed !!!
+#      print(i) #debugging tool, if needed !!!
   }
   return(subset_sensor)
 }
 
 def_field <- fields_querer(1) # Querying field 1 
 
-min(def_field$value);max(def_field$value)
+write.csv(def_field, "field_1.csv", row.names=F)
+
+
+#min(def_field$value);max(def_field$value)
 ```
 
 #### Fields Mapping
+```{r}
+field_1 <- read.csv("field_1.csv")
+```
 
 ```{r}
 library(viridis)
@@ -349,5 +497,184 @@ fg
 - after : est-ce que intensité variation de poids générée par la charge est masquée ou pas. 
 
 
+
+
+##Récupération pics field
+
+```{r}
+#road_sec$value
+library(quantmod)
+field_1$id=1:length(field_1$value)
+field_1$sensor_time <- as.POSIXct(field_1$sensor_time)
+maxindex=findPeaks(field_1$value)
+minindex=findValleys(field_1$value)
+```
+
+```{r}
+minmax=data.frame(value=field_1$value)
+minmax$time=field_1$sensor_time
+minmax$id=field_1$id
+minmax$soil_type=field_1$soil_type
+minmax$vitesse=field_1$vitesse
+minmax$min=0
+minmax$max=0
+minmax$min[minindex-1]=1 #les finds décalent de 1
+minmax$max[maxindex-1]=1
+
+#part_road_sec$value
+
+```
+
+Seuil (ce seuil doit différencier les pics et les "plateau").
+```{r}
+minmax$max[which(minmax$value<290)]=0
+minmax$min[which(minmax$value>290)]=0
+```
+
+
+On fait des bandes par min. Chaque pic devrait être sur une bande (certaines bandes ne contiennent pas de pic, pas gênant
+ car elles n'ont normalement pas de max si le seuil est bon).
+```{r}
+minmax$bande_min=0
+for (i in 1:length(minmax$min)){
+  minmax$bande_min[i]=sum(minmax$min[1:i])
+}
+```
+
+
+Trouver le max du pic.
+```{r}
+#which(minmax$max[which(minmax$bande_min==770)]==1)
+#which(minmax$bande_min==770)[which(minmax$max[which(minmax$bande_min==770)]==1)]
+minmax$MAX=0
+for (i in 1: length(minmax$value)){
+  minmax$MAX[which(minmax$bande_min==i)[which(minmax$max[which(minmax$bande_min==i)]==1)][which.max(minmax$value[which(minmax$bande_min==i)[which(minmax$max[which(minmax$bande_min==i)]==1)]])]]=1 #tkt.
+}
+
+
+
+```
+
+Trouver les minimums jouxtant chaque pic.
+```{r}
+minmax$MIN=0
+minmax$MING=0
+minmax$MIND=0
+temp=minmax$bande_min[which(minmax$MAX==1)]
+for (i in temp){
+  minmax$MIN[which(minmax$bande_min==i)[1]]=1
+  minmax$MING[which(minmax$bande_min==i)[1]]=1
+  minmax$MIN[which(minmax$bande_min==i)[length(which(minmax$bande_min==i))]+1]=1
+  minmax$MIND[which(minmax$bande_min==i)[length(which(minmax$bande_min==i))]+1]=1
+} #Pas parfait, modifier si temps
+
+
+
+
+
+```
+
+
+un min un max un min | un min un max un min | min max min |min max min
+On a donc un pic définit par son max, avec un minimum de chaque côté du pic.
+```{r}
+minmax$id_pic=0
+for (i in 1:length(minmax$min)){
+  minmax$id_pic[i]=sum(minmax$MING[1:i])
+}
+
+```
+
+
+Un point aberrant peut être à la fois ming et mind (problème = il passe seuillage). Les pics liés ne sont donc en réalité pas de vrais pics.
+
+```{r}
+
+
+for (i in minmax$id_pic[which(minmax$MING==1 & minmax$MIND==1)]-1){
+  sup=which.min(c(minmax$value[which(minmax$MAX==1 & minmax$id_pic==i)],minmax$value[which(minmax$MAX==1 & minmax$id_pic==i+1)]))
+minmax$MAX[c(which(minmax$MAX==1 & minmax$id_pic==i),which(minmax$MAX==1 & minmax$id_pic==i+1))[sup]]=0
+}
+
+
+#Suppression des minimum aberrants.
+minmax$MIN[which(minmax$MING==1 & minmax$MIND==1)]=0
+minmax$MING[which(minmax$MING==1 & minmax$MIND==1)]=0
+minmax$MIND[which(minmax$MING==1 & minmax$MIND==1)]=0
+
+```
+
+
+
+id_pic après correction des aberrants.
+```{r}
+minmax$id_pic=0
+for (i in 1:length(minmax$min)){
+  minmax$id_pic[i]=sum(minmax$MING[1:i])
+}
+
+```
+
+
+
+```{r}
+data_pic=data.frame(id_pic=1:max(minmax$id_pic))
+data_pic$soil_type=0
+data_pic$vitesse=0
+
+
+data_pic$ming_value=0
+data_pic$ming_time=minmax$time[1]
+
+data_pic$max_value=0
+data_pic$max_time=minmax$time[1]
+
+data_pic$mind_value=0
+data_pic$mind_time=minmax$time[1]
+
+
+for (i in 1:max(minmax$id_pic)){
+  print(i)
+  data_pic$ming_value[i]= minmax$value[which(minmax$id_pic==i)[1]]
+  data_pic$ming_time[i]= minmax$time[which(minmax$id_pic==i)[1]]
+  
+  data_pic$max_value[i]= minmax$value[which(minmax$id_pic==i)[which(minmax$MAX[which(minmax$id_pic==i)]==1)]]
+  data_pic$max_time[i]= minmax$time[which(minmax$id_pic==i)[which(minmax$MAX[which(minmax$id_pic==i)]==1)]]
+  data_pic$soil_type[i]=minmax$soil_type[which(minmax$id_pic==i)[which(minmax$MAX[which(minmax$id_pic==i)]==1)]]
+  data_pic$vitesse[i]=minmax$vitesse[which(minmax$id_pic==i)[which(minmax$MAX[which(minmax$id_pic==i)]==1)]]
+  
+  data_pic$mind_value[i]= minmax$value[which(minmax$id_pic==i)[which(minmax$MIND[which(minmax$id_pic==i)]==1)]]
+  data_pic$mind_time[i]= minmax$time[which(minmax$id_pic==i)[which(minmax$MIND[which(minmax$id_pic==i)]==1)]]
+}
+
+data_pic$hauteur=data_pic$max_value-apply(rbind(data_pic$ming_value, data_pic$mind_value), 2, min)
+
+
+data_pic$largeur= minmax$time[1] #Pour récupérer le format POSIX, là. 
+data_pic$largeur_sec= difftime( data_pic$mind_time, data_pic$ming_time, units="secs" ) #largeur en secondes
+
+```
+
+```{r}
+write.csv(data_pic, "data_pic_P2_field_1.csv", row.names=F)
+```
+
+
+Copie du plotly pour avoir un visu
+```{r message=FALSE, warning=FALSE}
+library(plotly)
+```
+
+```{r}
+minmax$color=minmax$MAX + 2*minmax$MIN
+fg <- plot_ly(x=~minmax$time, y=minmax$value, alpha = 0.4,
+               text = minmax$id, color=as.character(minmax$color))
+fg
+
+fg <- plot_ly(x=~minmax$time, y=minmax$value, alpha = 0.4,
+               text = paste(minmax$id, "  ", minmax$id_pic), color=as.character(minmax$id_pic))
+fg
+
+```
 
 
