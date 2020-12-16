@@ -34,7 +34,7 @@ sensor_df$value <- substr(sensor_df$value, 10, 14)
 sensor_df$value <- gsub("\"", "", sensor_df$value)
 sensor_df$value <- gsub("}", "", sensor_df$value)
 
-my_options <- options(digits.secs = 3) 
+options(digits.secs = 3) 
 
 sensor_df$sensor_time <- as.POSIXct(sensor_df$sensor_time)
 
@@ -48,74 +48,52 @@ sensor_df
 
 ```{r message=FALSE, warning=FALSE}
 #simple_log_P1 <- fread("P1/simple-log.txt",  header = F)
-simple_log_P2 <- fread("P2/simple-log.txt",  header = F)
+logs <- fread("P2/simple-log.txt",  header = F)
 
 #simple_log_P1$V1 <- substr(simple_log_P1$V1, 1, 23)
-simple_log_P2$V1 <- substr(simple_log_P2$V1, 1, 27)
+logs$V1 <- substr(logs$V1, 1, 27)
 
-names(simple_log_P2)[1] <- "date_time"
-names(simple_log_P2)[2] <- "date_gnss"
-names(simple_log_P2)[3] <- "heure_gnss"
-names(simple_log_P2)[4] <- "latitude"
-names(simple_log_P2)[5] <- "longitude"
-names(simple_log_P2)[6] <- "speed"
+names(logs)[1] <- "date_time"
+names(logs)[2] <- "date_gnss"
+names(logs)[3] <- "heure_gnss"
+names(logs)[4] <- "latitude"
+names(logs)[5] <- "longitude"
+names(logs)[6] <- "speed"
 
-simple_log_P2$date_time <-as.POSIXct(simple_log_P2$date_time, format="%Y-%m-%d %H:%M:%OS")
+logs$date_time <-as.POSIXct(logs$date_time, format="%Y-%m-%d %H:%M:%OS")
 
 #simple_log_P2$date_time <- format(simple_log_P2$date_time,)
-simple_log_P2
-```
-
-
-```{r}
-logs <- simple_log_P2[!is.na(simple_log_P2$latitude) &
-                                 !is.na(simple_log_P2$longitude), ] %>%
+logs <- logs[!is.na(logs$latitude) &
+                                 !is.na(logs$longitude), ] %>%
         subset(select = -c(date_gnss, heure_gnss))
 logs
 ```
 
-## Val's
+## Roads/Fields segmentation
 
 ```{r message=FALSE, warning=FALSE}
 fields <- fread("P2/GIS_parcelles_soil_type_added.csv");fields
 roads <- fread("P2/roads_p2.csv");roads
 ```
 
+
+### Roads pre-processing
+
 ```{r}
-names(fields)[1] <- "date_time"
 names(roads)[1] <- "date_time"
-
-names(fields)[2] <- "date_gnss"
 names(roads)[2] <- "date_gnss"
-  
-names(fields)[3] <- "time_gnss"
 names(roads)[3] <- "time_gnss"
-
-names(fields)[4] <- "latitude"
 names(roads)[4] <- "latitude"
-
-names(fields)[5] <- "longitude"
 names(roads)[5] <- "longitude"
-
-names(fields)[6] <- "speed"
 names(roads)[6] <- "speed"
-
-names(fields)[7] <- "field_id"
 names(roads)[7] <- "road_sections"
-
-names(fields)[8] <- "soil_type"
 
 roads$road_sections <- gsub("portion", "", roads$road_sections) %>%
                         as.numeric()
 
-table(fields$field_id)
-fields
-roads
-```
-
-```{r}
-fields$date_time <- as.POSIXct(fields$date_time)
 roads$date_time <- as.POSIXct(roads$date_time)
+
+roads
 ```
 
 ```{r}
@@ -125,17 +103,13 @@ roads
 ```
 
 ```{r}
-min(fields$date_time);max(fields$date_time)
+min(roads$date_time);max(roads$date_time) # aller/retours (not that informative)
 ```
 
-```{r}
-min(roads$date_time);max(roads$date_time)
-```
-
+### Roads query fun 
 ```{r}
 # Segmentation par requêtes - aller 1 ici 
-
-query <- function (section, round_type){
+roads_querer <- function (section, round_type){ # OUi oui querer
   
   # Subsetting the roads dataset 
   aller_1 <- roads[roads$road_sections == section & roads$round==round_type ,]
@@ -156,43 +130,90 @@ query <- function (section, round_type){
     }
       subset_sensor$lat[i] = logs$latitude[j]
       subset_sensor$long[i] = logs$longitude[j]
-      subset_sensor$vitesse[i] = logs$speed[j]
+      subset_sensor$speed[i] = logs$speed[j]
     #print(i) debugging tool, if needed 
   }
   return(subset_sensor)
 }
 
-xyz <- query(2, "aller")
-xyz
+road_sec <- roads_querer(2, "aller")
+road_sec
+```
+### Roads mapping
+
+```{r}
+library(viridis)
+library(leaflet)
+domain <- range(road_sec$value)
+
+# make palette
+pal <- colorNumeric(palette = viridis(3), domain = domain)
+```
+
+ 
+```{r}
+roads_map <- leaflet(road_sec) %>% 
+             addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
+             options = providerTileOptions(noWrap = TRUE)) %>%
+  
+                 addCircleMarkers(radius = ~(value-300), color = ~pal(value), 
+                        fillColor = ~pal(value), opacity = 0.2,
+                        label = paste(road_sec$value))
+roads_map
+```
+
+### Fields pre-processing
+
+```{r}
+names(fields)[1] <- "date_time"
+names(fields)[2] <- "date_gnss"
+names(fields)[3] <- "time_gnss"
+names(fields)[4] <- "latitude"
+names(fields)[5] <- "longitude"
+names(fields)[6] <- "speed"
+names(fields)[7] <- "field_id"
+names(fields)[8] <- "soil_type"
+
+fields$date_time <- as.POSIXct(fields$date_time)
+
+fields$speed <- gsub(",", ".", fields$speed) %>%
+                as.numeric()
+fields
+
 ```
 
 ```{r}
-query <- function (field_id){
-  
-  # Subsetting the roads dataset 
-  field <- fields[fields$field_id == section,]
-  
-  # Using logs subset to subset sensor data 
-  sensor_df_p2 <- sensor_df[sensor_df$sensor_time >= min(field$date_time) &
-                          sensor_df$sensor_time <= max(field$date_time),]
-  
-  # Changing df names (for secure)
-  subset_sensor <- sensor_df_p2
-  roads_logs <- roads
-  
-  # While statement to affect lats/longs and speed to dedicated timestamps
-  j=1
-  for(i in 1:nrow(subset_sensor)) {
-    while(subset_sensor$sensor_time[i] > logs$date_time[j]) {
-      j=j+1
-    }
-      subset_sensor$lat[i] = logs$latitude[j]
-      subset_sensor$long[i] = logs$longitude[j]
-      subset_sensor$vitesse[i] = logs$speed[j]
-    #print(i) debugging tool, if needed 
-  }
-  return(subset_sensor)
-}
+min(fields$date_time);max(fields$date_time)
+```
+
+### Fields query fun 
+```{r}
+# fields_query <- function (field_id){
+#   
+#   # Subsetting the roads dataset 
+#   field <- fields[fields$field_id == section,]
+#   
+#   # Using logs subset to subset sensor data 
+#   sensor_df_p2 <- sensor_df[sensor_df$sensor_time >= min(field$date_time) &
+#                           sensor_df$sensor_time <= max(field$date_time),]
+#   
+#   # Changing df names (for secure)
+#   subset_sensor <- sensor_df_p2
+#   roads_logs <- roads
+#   
+#   # While statement to affect lats/longs and speed to dedicated timestamps
+#   j=1
+#   for(i in 1:nrow(subset_sensor)) {
+#     while(subset_sensor$sensor_time[i] > logs$date_time[j]) {
+#       j=j+1
+#     }
+#       subset_sensor$lat[i] = logs$latitude[j]
+#       subset_sensor$long[i] = logs$longitude[j]
+#       subset_sensor$vitesse[i] = logs$speed[j]
+#     #print(i) debugging tool, if needed 
+#   }
+#   return(subset_sensor)
+# }
 
 # Subsetting the roads dataset 
 field <- fields[fields$field_id == 43,]
@@ -220,6 +241,8 @@ for(i in 1:nrow(subset_sensor)) {
 min(subset_sensor$value);max(subset_sensor$value)
 ```
 
+### Mapping
+
 ```{r}
 library(viridis)
 library(leaflet)
@@ -239,7 +262,6 @@ map <- leaflet(subset_sensor) %>% addProviderTiles(providers$CartoDB.DarkMatterN
                         label = paste(subset_sensor$value))
 map
 ```
-
 
 
 ## Plot_ly 
@@ -363,6 +385,7 @@ fg
    // classification des valeurs par vitesses (mettre route VS parcelles) -> faire des classes de vitesses bien disjointes
 
 - after : est-ce que intensité variation de poids générée par la charge est masquée ou pas. 
+
 
 
 
