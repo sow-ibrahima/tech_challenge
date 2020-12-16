@@ -161,9 +161,18 @@ roads_map <- leaflet(road_sec) %>%
                  addCircleMarkers(radius = ~(value-350), color = ~pal(value), 
                         fillColor = ~pal(value), opacity = 0.2,
                         label = paste(road_sec$value))
+
+roads_map <- leaflet(road_sec) %>% 
+             addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
+             options = providerTileOptions(noWrap = TRUE)) %>%
+  
+                 addCircleMarkers(radius = ~0.1*value, color = ~pal(value), 
+                        fillColor = ~pal(value), opacity = 0.2,
+                        label = paste(road_sec$value))
 roads_map
 ```
 
+<<<<<<< HEAD
 -------------------
 
 Val's 
@@ -189,6 +198,46 @@ minmax$max[maxindex]=1
 
 ### FIELDS 
 #### Fields pre-processing
+=======
+## Roads pic identification
+
+```{r}
+road_sec$numero= 1:5749
+
+library(plotly)
+
+fg1 <- plot_ly(x=~road_sec$sensor_time, y=~road_sec$value, alpha = 0.4,
+              mode = 'lines', text = road_sec$numero)
+
+fg1
+```
+
+
+```{r}
+road_sec$value
+
+library(quantmod)
+maxindex=findPeaks(road_sec$value[30:200])
+minindex=findValleys(road_sec$value[30:200])
+
+minmax=data.frame(value=road_sec$value)
+minmax$min=0
+minmax$max=0
+
+minmax$min[minindex]=1
+minmax$max[maxindex]=1
+
+
+#ICI
+
+
+```
+
+
+
+
+### Fields pre-processing
+>>>>>>> main
 
 ```{r}
 names(fields)[1] <- "date_time"
