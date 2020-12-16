@@ -76,8 +76,8 @@ fields <- fread("P2/GIS_parcelles_soil_type_added.csv");fields
 roads <- fread("P2/roads_p2.csv");roads
 ```
 
-
-### Roads pre-processing
+### ROADS
+#### Roads pre-processing
 
 ```{r}
 names(roads)[1] <- "date_time"
@@ -106,7 +106,7 @@ roads
 min(roads$date_time);max(roads$date_time) # aller/retours (not that informative)
 ```
 
-### Roads query fun 
+#### Roads query fun 
 ```{r}
 # Segmentation par requêtes - aller 1 ici 
 roads_querer <- function (section, round_type){ # OUi oui querer
@@ -125,12 +125,14 @@ roads_querer <- function (section, round_type){ # OUi oui querer
   # While statement to affect lats/longs and speed to dedicated timestamps
   j=1
   for(i in 1:nrow(subset_sensor)) {
-    while(subset_sensor$sensor_time[i] > logs$date_time[j]) {
+    while(subset_sensor$sensor_time[i] > aller_1$date_time[j]) {
       j=j+1
     }
-      subset_sensor$lat[i] = logs$latitude[j]
-      subset_sensor$long[i] = logs$longitude[j]
-      subset_sensor$speed[i] = logs$speed[j]
+      subset_sensor$lat[i] = aller_1$latitude[j]
+      subset_sensor$long[i] = aller_1$longitude[j]
+      subset_sensor$speed[i] = aller_1$speed[j]
+      subset_sensor$road_sections[i] = aller_1$road_sections[j]
+      subset_sensor$round[i] = aller_1$round[j]
     #print(i) debugging tool, if needed 
   }
   return(subset_sensor)
@@ -139,7 +141,7 @@ roads_querer <- function (section, round_type){ # OUi oui querer
 road_sec <- roads_querer(2, "aller")
 road_sec
 ```
-### Roads mapping
+#### Roads mapping
 
 ```{r}
 library(viridis)
@@ -156,13 +158,85 @@ roads_map <- leaflet(road_sec) %>%
              addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
              options = providerTileOptions(noWrap = TRUE)) %>%
   
-                 addCircleMarkers(radius = ~(value-300), color = ~pal(value), 
+                 addCircleMarkers(radius = ~(value-350), color = ~pal(value), 
+                        fillColor = ~pal(value), opacity = 0.2,
+                        label = paste(road_sec$value))
+
+roads_map <- leaflet(road_sec) %>% 
+             addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
+             options = providerTileOptions(noWrap = TRUE)) %>%
+  
+                 addCircleMarkers(radius = ~0.1*value, color = ~pal(value), 
                         fillColor = ~pal(value), opacity = 0.2,
                         label = paste(road_sec$value))
 roads_map
 ```
 
+<<<<<<< HEAD
+-------------------
+ 
+Val's 
+
+```{r}
+road_sec$value
+library(quantmod)
+maxindex=findPeaks(road_sec$value[30:200])
+minindex=findValleys(road_sec$value[30:200])
+```
+
+```{r}
+minmax=data.frame(value=road_sec$value)
+minmax$min=0
+minmax$max=0
+minmax$min[minindex]=1
+minmax$max[maxindex]=1
+```
+
+-------------------
+
+
+### FIELDS 
+#### Fields pre-processing
+=======
+## Roads pic identification
+
+```{r}
+road_sec$numero= 1:5749
+
+library(plotly)
+
+fg1 <- plot_ly(x=~road_sec$sensor_time, y=~road_sec$value, alpha = 0.4,
+              mode = 'lines', text = road_sec$numero)
+
+fg1
+```
+
+
+```{r}
+road_sec$value
+
+library(quantmod)
+maxindex=findPeaks(road_sec$value[30:200])
+minindex=findValleys(road_sec$value[30:200])
+
+minmax=data.frame(value=road_sec$value)
+minmax$min=0
+minmax$max=0
+
+minmax$min[minindex]=1
+minmax$max[maxindex]=1
+
+
+#ICI
+
+
+```
+
+
+
+
 ### Fields pre-processing
+>>>>>>> main
 
 ```{r}
 names(fields)[1] <- "date_time"
@@ -178,75 +252,56 @@ fields$date_time <- as.POSIXct(fields$date_time)
 
 fields$speed <- gsub(",", ".", fields$speed) %>%
                 as.numeric()
+fields$longitude <- gsub(",", ".", fields$longitude) %>%
+                as.numeric()
 fields
-
 ```
 
 ```{r}
-min(fields$date_time);max(fields$date_time)
+min(fields$date_time);max(fields$date_time) # Aller/retours considerated - not informative !!!
 ```
 
-### Fields query fun 
-```{r}
-# fields_query <- function (field_id){
-#   
-#   # Subsetting the roads dataset 
-#   field <- fields[fields$field_id == section,]
-#   
-#   # Using logs subset to subset sensor data 
-#   sensor_df_p2 <- sensor_df[sensor_df$sensor_time >= min(field$date_time) &
-#                           sensor_df$sensor_time <= max(field$date_time),]
-#   
-#   # Changing df names (for secure)
-#   subset_sensor <- sensor_df_p2
-#   roads_logs <- roads
-#   
-#   # While statement to affect lats/longs and speed to dedicated timestamps
-#   j=1
-#   for(i in 1:nrow(subset_sensor)) {
-#     while(subset_sensor$sensor_time[i] > logs$date_time[j]) {
-#       j=j+1
-#     }
-#       subset_sensor$lat[i] = logs$latitude[j]
-#       subset_sensor$long[i] = logs$longitude[j]
-#       subset_sensor$vitesse[i] = logs$speed[j]
-#     #print(i) debugging tool, if needed 
-#   }
-#   return(subset_sensor)
-# }
+#### Fields query fun 
 
+```{r}
 # Subsetting the roads dataset 
-field <- fields[fields$field_id == 43,]
+fields_querer <- function (fieldId){ # Oui oui querer 
+  field <- fields[fields$field_id == fieldId,]
 
-# Using logs subset to subset sensor data 
-sensor_df_p2 <- sensor_df[sensor_df$sensor_time >= min(field$date_time) &
-                        sensor_df$sensor_time <= max(field$date_time),]
-
-# Changing df names (for secure)
-subset_sensor <- sensor_df_p2[1:20000, ]
-roads_logs <- roads
-
-# While statement to affect lats/longs and speed to dedicated timestamps
-j=1
-for(i in 1:nrow(subset_sensor)) {
-  while(subset_sensor$sensor_time[i] > logs$date_time[j]) {
-    j=j+1
+  # Using logs subset to subset sensor data 
+  subseted_sensor <- sensor_df[sensor_df$sensor_time >= min(field$date_time) &
+                          sensor_df$sensor_time <= max(field$date_time),]
+  
+  # Changing df names (for secure)
+  subset_sensor <- subseted_sensor
+  
+  # While statement to affect lats/longs and speed to dedicated timestamps
+  j=1
+  for(i in 1:nrow(subset_sensor)) {
+    while(subset_sensor$sensor_time[i] > field$date_time[j]) {
+      j=j+1
+    }
+      subset_sensor$lat[i] = field$latitude[j]
+      subset_sensor$long[i] = field$longitude[j]
+      subset_sensor$vitesse[i] = field$speed[j]
+      subset_sensor$field_id[i] = field$field_id[j]
+      subset_sensor$soil_type[i] = field$soil_type[j]
+      print(i) #debugging tool, if needed !!!
   }
-    subset_sensor$lat[i] = logs$latitude[j]
-    subset_sensor$long[i] = logs$longitude[j]
-    subset_sensor$vitesse[i] = logs$speed[j]
-  print(i) #debugging tool, if needed 
+  return(subset_sensor)
 }
 
-min(subset_sensor$value);max(subset_sensor$value)
+def_field <- fields_querer(1) # Querying field 1 
+
+min(def_field$value);max(def_field$value)
 ```
 
-### Mapping
+#### Fields Mapping
 
 ```{r}
 library(viridis)
 library(leaflet)
-domain <- range(subset_sensor$value)
+domain <- range(def_field$value)
 
 # make palette
 pal <- colorNumeric(palette = viridis(3), domain = domain)
@@ -255,71 +310,41 @@ pal <- colorNumeric(palette = viridis(3), domain = domain)
  
 ```{r}
 
-map <- leaflet(subset_sensor) %>% addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
+map <- leaflet(def_field) %>% addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
                       options = providerTileOptions(noWrap = TRUE)) %>%
-       addCircleMarkers(radius = ~(value-300), color = ~pal(value), 
+       addCircleMarkers(radius = ~(value-330), color = ~pal(value), 
                         fillColor = ~pal(value), opacity = 0.2,
-                        label = paste(subset_sensor$value))
+                        label = paste0(def_field$value, " - " ,def_field$soil_type))
+       
 map
 ```
 
 
 ## Plot_ly 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 library(plotly)
-mysensor_df$date_time <- as.POSIXct(mysensor_df$date_time)
 ```
 
 ```{r}
-fg <- plot_ly(x=~mysensor_df$date_time, y=mysensor_df$value, alpha = 0.4,
-              mode = 'markers', text = paste("days from today"))
+fg <- plot_ly(x=~road_sec$sensor_time, y=road_sec$value, alpha = 0.4,
+              mode = 'lines', text = road_sec$id)
 fg
 ```
 
-```{r message=FALSE, warning=FALSE}
-my_parcelles <- read_csv("P2/GIS_parcelles.csv");my_parcelles
-roads <- fread("P2/roads_p2.csv");roads
-```
-
 ```{r}
-names(my_parcelles)[1] <- "date_time"
-names(roads)[1] <- "date_time"
-  
-names(my_parcelles)[2] <- "date_gnss"
-names(roads)[2] <- "date_gnss"
-  
-names(my_parcelles)[3] <- "time_gnss"
-names(roads)[3] <- "time_gnss"
-
-names(my_parcelles)[4] <- "time_gnss"
-names(roads)[4] <- "time_gnss"
-
-names(my_parcelles)[5] <- "time_gnss"
-names(roads)[5] <- "time_gnss"
-
-names(my_parcelles)[6] <- "time_gnss"
-names(roads)[6] <- "time_gnss"
-
-table(my_parcelles$`ID Culture`)
-roads
-```
-
-```{r}
-mysensor_df$date_time <- as.character(mysensor_df$date_time)
-my_parcelles$date_time <- as.character(my_parcelles$date_time)
-```
-
-```{r}
-join_parcelles <- merge(mysensor_df, my_parcelles, by="date_time")
-table(join_parcelles$`ID Culture`)
+road_sec$id <- 1:nrow(road_sec)
 ```
 
 
+```{r}
+library(pracma)
+road_sec$value <- as.numeric(road_sec$value)
+pracma::findpeaks(as.numeric(road_sec[4621:6435,]$value), minpeakheight = 320) # Check which road sec used ! 
+```
+
 
 ```{r}
-join_parcelles$date_time <- as.POSIXct(join_parcelles$date_time)
-
 fg <- plot_ly(x=~join_parcelles$date_time, y=~join_parcelles$value, alpha = 0.4,
               colors = ~join_parcelles$`ID Culture`,
               mode = 'lines', text = paste("days from today"))
@@ -329,10 +354,6 @@ fg
 - Min/Max locaux avec dérivés 
 - XXX
 - Histogramme // 2 sortes de pics 
-```{r}
-library(pspline)
-deriv_x <- predict(sm.spline(join_parcelles$date_time, as.numeric(join_parcelles$value)), time, 1)
-```
 
 
 ```{r}
@@ -356,12 +377,6 @@ fg1
 roads
 ```
 
-
-```{r}
-library(pracma)
-sensor_df$value <- as.numeric(sensor_df$value)
-pracma::findpeaks(as.numeric(sensor_df[1:100,]$value))
-```
 
 ```{r}
 subset_sensor_df <- sensor_df[1:100,]
