@@ -11,72 +11,37 @@ library(tidyverse)
 library(readr)
 library(data.table)
 library(stringr)
-getwd()
-```
-
-```{r}
-sensor_1_P1 <- fread("P1/sensor_1.csv", header = F, quote = "")
-names(sensor_1_P1)[1] <- "sensor_id"
-names(sensor_1_P1)[2] <- "sensor_time"
-names(sensor_1_P1)[3] <- "value"
-``` 
-
-```{r}
-sensor_2_P1 <- fread("P1/sensor_2.csv", header = F, quote = "")
-names(sensor_2_P1)[1] <- "sensor_id"
-names(sensor_2_P1)[2] <- "sensor_time"
-names(sensor_2_P1)[3] <- "value"
-``` 
-
-```{r}
-sensor_1_P1$sensor_id <- substr(sensor_1_P1$sensor_id, 14, 14)
-sensor_2_P1$sensor_id <- substr(sensor_2_P1$sensor_id, 14, 14)
-
-sensor_1_P1$sensor_time <- substr(sensor_1_P1$sensor_time, 16, 38)
-sensor_2_P1$sensor_time <- substr(sensor_2_P1$sensor_time, 9, nchar(sensor_2_P1$sensor_time)-2)
-
-sensor_1_P1$value <- substr(sensor_1_P1$value, 10, 13)
-sensor_2_P1$value <- substr(sensor_2_P1$value, 10, 13)
-
-sensor_2_P1$value <- gsub("\"", "", sensor_2_P1$value)
-sensor_2_P1$value <- gsub("}", "", sensor_2_P1$value)
-
-sensor_1_P1$sensor_time <- gsub("T", " ", sensor_1_P1$sensor_time)
-#sensor_1_P1$sensor_time <- gsub("Z", "", sensor_1_P1$sensor_time)
-
-sensor_2_P1$sensor_time <- gsub("T", " ", sensor_2_P1$sensor_time)
-#sensor_2_P1$sensor_time <- gsub("Z", "", sensor_2_P1$sensor_time)
-```
-
-```{r}
-# Binding P1s
-mydata_p1 <- rbind(sensor_1_P1, sensor_2_P1)
-mydata_p1
 ```
 
 ## Second passage
 ```{r}
-mydata_p2 <- fread("P2/sensor_1.csv", header = F, quote = "")
-names(mydata_p2)[1] <- "sensor_id"
-names(mydata_p2)[2] <- "sensor_time"
-names(mydata_p2)[3] <- "value"
-mydata_p2
+sensor_df <- fread("P2/sensor_1.csv", header = F, quote = "")
+names(sensor_df)[1] <- "sensor_id"
+names(sensor_df)[2] <- "sensor_time"
+names(sensor_df)[3] <- "value"
+sensor_df
 ``` 
 
 
 ```{r}
-mydata_p2$sensor_id <- substr(mydata_p2$sensor_id, 14, 14)
+sensor_df$sensor_id <- substr(sensor_df$sensor_id, 14, 14)
 
-mydata_p2$sensor_time <- substr(mydata_p2$sensor_time, 16, 39)
-mydata_p2$sensor_time <- gsub("T", " ", mydata_p2$sensor_time)
+sensor_df$sensor_time <- substr(sensor_df$sensor_time, 16, 39)
+sensor_df$sensor_time <- gsub("T", " ", sensor_df$sensor_time)
 
-mydata_p2$value <- substr(mydata_p2$value, 10, 14)
+sensor_df$value <- substr(sensor_df$value, 10, 14)
 
-mydata_p2$value <- gsub("\"", "", mydata_p2$value)
-mydata_p2$value <- gsub("}", "", mydata_p2$value)
+sensor_df$value <- gsub("\"", "", sensor_df$value)
+sensor_df$value <- gsub("}", "", sensor_df$value)
 
+my_options <- options(digits.secs = 3) 
+
+sensor_df$sensor_time <- as.POSIXct(sensor_df$sensor_time)
+
+sensor_df$value <- as.numeric(sensor_df$value)
+  
 #sensor_1_P2$sensor_time <- gsub("Z", "", sensor_1_P2$sensor_time)
-head(mydata_p2)
+sensor_df
 ```
 
 ## Importing simple log files  
@@ -86,7 +51,7 @@ head(mydata_p2)
 simple_log_P2 <- fread("P2/simple-log.txt",  header = F)
 
 #simple_log_P1$V1 <- substr(simple_log_P1$V1, 1, 23)
-simple_log_P2$V1 <- substr(simple_log_P2$V1, 1, 19)
+simple_log_P2$V1 <- substr(simple_log_P2$V1, 1, 27)
 
 names(simple_log_P2)[1] <- "date_time"
 names(simple_log_P2)[2] <- "date_gnss"
@@ -94,6 +59,10 @@ names(simple_log_P2)[3] <- "heure_gnss"
 names(simple_log_P2)[4] <- "latitude"
 names(simple_log_P2)[5] <- "longitude"
 names(simple_log_P2)[6] <- "speed"
+
+simple_log_P2$date_time <-as.POSIXct(simple_log_P2$date_time, format="%Y-%m-%d %H:%M:%OS")
+
+#simple_log_P2$date_time <- format(simple_log_P2$date_time,)
 simple_log_P2
 ```
 
@@ -105,91 +74,183 @@ logs <- simple_log_P2[!is.na(simple_log_P2$latitude) &
 logs
 ```
 
-```{r}
-# Binding by date_time
+## Val's
 
-#While date_time < à la valeur associée 
-# parcourir capteurs file et while que la date du fichier captreur est inférieur à la 
-#ifelse(strptime(mydata_p2$sensor_time[1], "%H:%M") < strptime(simple_log$date_time[1], "%H:%M"), "Dead", "NONE")
-
-mydata_p2$sensor_time <- as.POSIXct(mydata_p2$sensor_time)
-logs$date_time <- as.POSIXct(logs$date_time)
-
-# names(mydata_p2)[2] <- "date_time"
-# df_p1 <- merge(simple_log_P1, mydata_p1, by="date_time")
-# table(df_p1$value)
-
-# j=1
-# for (i in 1:length(sensor_clean[,1])){
-#   print(i)
-#   while (sensor_clean$time[i]>simple_log$time[j]) {
-#     j=j+1
-#   }
-#   sensor_clean$associate=j
-# }
-df2 <- mydata_p2
-
+```{r message=FALSE, warning=FALSE}
+fields <- fread("P2/GIS_parcelles_soil_type_added.csv");fields
+roads <- fread("P2/roads_p2.csv");roads
 ```
 
 ```{r}
-df2$value <- as.numeric(df2$value)
-df2 %>%
-  group_by(sensor_time) %>%
-  summarise_each(median, value)
+names(fields)[1] <- "date_time"
+names(roads)[1] <- "date_time"
+
+names(fields)[2] <- "date_gnss"
+names(roads)[2] <- "date_gnss"
+  
+names(fields)[3] <- "time_gnss"
+names(roads)[3] <- "time_gnss"
+
+names(fields)[4] <- "latitude"
+names(roads)[4] <- "latitude"
+
+names(fields)[5] <- "longitude"
+names(roads)[5] <- "longitude"
+
+names(fields)[6] <- "speed"
+names(roads)[6] <- "speed"
+
+names(fields)[7] <- "field_id"
+names(roads)[7] <- "road_sections"
+
+names(fields)[8] <- "soil_type"
+
+roads$road_sections <- gsub("portion", "", roads$road_sections) %>%
+                        as.numeric()
+
+table(fields$field_id)
+fields
+roads
 ```
 
 ```{r}
-sensor <- aggregate(as.numeric(mydata_p2$value),
-                    by=list(mydata_p2$sensor_time),
-                    data=mydata_p2,FUN=median)
+fields$date_time <- as.POSIXct(fields$date_time)
+roads$date_time <- as.POSIXct(roads$date_time)
 ```
 
 ```{r}
-#mydata_p2X <- unique(mydata_p2)
-
-# for (i in 1:nrow(sensor)){
-#   
-#   if(sensor$sensor_time[i] == logs$date_time[i]){
-#     
-#      sensor$lat[i] <- logs$latitude[i]
-#      sensor$long[i] <- logs$longitude[i]
-#      sensor$long[i] <- logs$speed[i]
-#      print(i)
-# }
-# }
-#length(unique(simple_log$date_time))
-```
-
-
-```{r}
-names(sensor)[1] <- "date_time"
-mydf <- merge(sensor, logs, by="date_time")
-names(mydf)[2] <- "value"
+roads$round <- "aller"
+roads[1185:nrow(roads),8] <- "retour" # 1184 index -> début retour
+roads
 ```
 
 ```{r}
-# for (i in 1:nrow(mydf)) {
-#     map$marker(c(mydf[i, "latitude"], mydf[i, "longitude"]), bindPopup = mydf[i, "location"])
-# }
+min(fields$date_time);max(fields$date_time)
 ```
 
+```{r}
+min(roads$date_time);max(roads$date_time)
+```
 
 ```{r}
+# Segmentation par requêtes - aller 1 ici 
+
+query <- function (section, round_type){
+  
+  # Subsetting the roads dataset 
+  aller_1 <- roads[roads$road_sections == section & roads$round==round_type ,]
+  
+  # Using logs subset to subset sensor data 
+  sensor_df_p2 <- sensor_df[sensor_df$sensor_time >= min(aller_1$date_time) &
+                          sensor_df$sensor_time <= max(aller_1$date_time),]
+  
+  # Changing df names (for secure)
+  subset_sensor <- sensor_df_p2
+  roads_logs <- roads
+  
+  # While statement to affect lats/longs and speed to dedicated timestamps
+  j=1
+  for(i in 1:nrow(subset_sensor)) {
+    while(subset_sensor$sensor_time[i] > logs$date_time[j]) {
+      j=j+1
+    }
+      subset_sensor$lat[i] = logs$latitude[j]
+      subset_sensor$long[i] = logs$longitude[j]
+      subset_sensor$vitesse[i] = logs$speed[j]
+    #print(i) debugging tool, if needed 
+  }
+  return(subset_sensor)
+}
+
+xyz <- query(2, "aller")
+xyz
+```
+
+```{r}
+query <- function (field_id){
+  
+  # Subsetting the roads dataset 
+  field <- fields[fields$field_id == section,]
+  
+  # Using logs subset to subset sensor data 
+  sensor_df_p2 <- sensor_df[sensor_df$sensor_time >= min(field$date_time) &
+                          sensor_df$sensor_time <= max(field$date_time),]
+  
+  # Changing df names (for secure)
+  subset_sensor <- sensor_df_p2
+  roads_logs <- roads
+  
+  # While statement to affect lats/longs and speed to dedicated timestamps
+  j=1
+  for(i in 1:nrow(subset_sensor)) {
+    while(subset_sensor$sensor_time[i] > logs$date_time[j]) {
+      j=j+1
+    }
+      subset_sensor$lat[i] = logs$latitude[j]
+      subset_sensor$long[i] = logs$longitude[j]
+      subset_sensor$vitesse[i] = logs$speed[j]
+    #print(i) debugging tool, if needed 
+  }
+  return(subset_sensor)
+}
+
+# Subsetting the roads dataset 
+field <- fields[fields$field_id == 43,]
+
+# Using logs subset to subset sensor data 
+sensor_df_p2 <- sensor_df[sensor_df$sensor_time >= min(field$date_time) &
+                        sensor_df$sensor_time <= max(field$date_time),]
+
+# Changing df names (for secure)
+subset_sensor <- sensor_df_p2[1:20000, ]
+roads_logs <- roads
+
+# While statement to affect lats/longs and speed to dedicated timestamps
+j=1
+for(i in 1:nrow(subset_sensor)) {
+  while(subset_sensor$sensor_time[i] > logs$date_time[j]) {
+    j=j+1
+  }
+    subset_sensor$lat[i] = logs$latitude[j]
+    subset_sensor$long[i] = logs$longitude[j]
+    subset_sensor$vitesse[i] = logs$speed[j]
+  print(i) #debugging tool, if needed 
+}
+
+min(subset_sensor$value);max(subset_sensor$value)
+```
+
+```{r}
+library(viridis)
 library(leaflet)
-map <- leaflet(mydf) %>% addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
+domain <- range(subset_sensor$value)
+
+# make palette
+pal <- colorNumeric(palette = viridis(3), domain = domain)
+```
+
+ 
+```{r}
+
+map <- leaflet(subset_sensor) %>% addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
                       options = providerTileOptions(noWrap = TRUE)) %>%
-       addCircleMarkers()
+       addCircleMarkers(radius = ~(value-300), color = ~pal(value), 
+                        fillColor = ~pal(value), opacity = 0.2,
+                        label = paste(subset_sensor$value))
 map
 ```
 
-### Plot_ly 
+
+
+## Plot_ly 
+
 ```{r}
 library(plotly)
-mydf$date_time <- as.POSIXct(mydf$date_time)
+mysensor_df$date_time <- as.POSIXct(mysensor_df$date_time)
 ```
 
 ```{r}
-fg <- plot_ly(x=~mydf$date_time, y=mydf$value, alpha = 0.4,
+fg <- plot_ly(x=~mysensor_df$date_time, y=mysensor_df$value, alpha = 0.4,
               mode = 'markers', text = paste("days from today"))
 fg
 ```
@@ -223,12 +284,12 @@ roads
 ```
 
 ```{r}
-mydf$date_time <- as.character(mydf$date_time)
+mysensor_df$date_time <- as.character(mysensor_df$date_time)
 my_parcelles$date_time <- as.character(my_parcelles$date_time)
 ```
 
 ```{r}
-join_parcelles <- merge(mydf, my_parcelles, by="date_time")
+join_parcelles <- merge(mysensor_df, my_parcelles, by="date_time")
 table(join_parcelles$`ID Culture`)
 ```
 
@@ -255,15 +316,15 @@ deriv_x <- predict(sm.spline(join_parcelles$date_time, as.numeric(join_parcelles
 ```{r}
 library(xts)
 d1 <- xts(splinefun(join_parcelles$date_time, join_parcelles$value)(join_parcelles$date_time, 1), join_parcelles$date_time)
-df <- cbind(join_parcelles, d1)
+sensor_df <- cbind(join_parcelles, d1)
 
-df$value <- as.numeric(df$value)
-df$date_time <- as.POSIXct(df$date_time)
+sensor_df$value <- as.numeric(sensor_df$value)
+sensor_df$date_time <- as.POSIXct(sensor_df$date_time)
 
-fg <- plot_ly(x=~df$date_time, y=~df$value, alpha = 0.4,
+fg <- plot_ly(x=~sensor_df$date_time, y=~sensor_df$value, alpha = 0.4,
               mode = 'lines', text = paste("days from today"))
 fg
-fg1 <- plot_ly(x=~df$date_time, y=~df$value, alpha = 0.4,
+fg1 <- plot_ly(x=~sensor_df$date_time, y=~sensor_df$value, alpha = 0.4,
               mode = 'lines', text = paste("days from today"))
 
 fg1
@@ -276,18 +337,17 @@ roads
 
 ```{r}
 library(pracma)
-mydata_p2$value <- as.numeric(mydata_p2$value)
-pracma::findpeaks(as.numeric(mydata_p2[1:100,]$value))
+sensor_df$value <- as.numeric(sensor_df$value)
+pracma::findpeaks(as.numeric(sensor_df[1:100,]$value))
 ```
 
 ```{r}
-subset_df <- mydata_p2[1:100,]
-subset_df$sensor_time <- as.POSIXct(subset_df$sensor_time)
+subset_sensor_df <- sensor_df[1:100,]
 
-subset_df$sensor_time <- format(subset_df$sensor_time,"%Y-%m-%d %H:%M:%OS3")
+subset_sensor_df$sensor_time <- as.POSIXct(subset_sensor_df$sensor_time)
+subset_sensor_df$sensor_time <- format(subset_sensor_df$sensor_time,"%Y-%m-%d %H:%M:%OS3")
 
-
-fg <- plot_ly(x=~subset_df$sensor_time, y=~subset_df$value, alpha = 0.4,
+fg <- plot_ly(x=~subset_sensor_df$sensor_time, y=~subset_sensor_df$value, alpha = 0.4,
               mode = 'markers', text = paste("days from today"))
 fg  %>%
 layout(paper_bgcolor='#5875D5',
@@ -303,8 +363,6 @@ fg
    // classification des valeurs par vitesses (mettre route VS parcelles) -> faire des classes de vitesses bien disjointes
 
 - after : est-ce que intensité variation de poids générée par la charge est masquée ou pas. 
-
-
 
 
 
