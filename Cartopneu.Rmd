@@ -15,7 +15,7 @@ library(stringr)
 
 ## Second passage
 ```{r}
-sensor_df <- fread("P2/sensor_1.csv", header = F, quote = "")
+sensor_df <- fread("P2/sensor_1.csv", header = T) 
 names(sensor_df)[1] <- "sensor_id"
 names(sensor_df)[2] <- "sensor_time"
 names(sensor_df)[3] <- "value"
@@ -26,7 +26,7 @@ sensor_df
 ```{r}
 sensor_df$sensor_id <- substr(sensor_df$sensor_id, 14, 14)
 
-sensor_df$sensor_time <- substr(sensor_df$sensor_time, 16, 39)
+sensor_df$sensor_time <- substr(sensor_df$sensor_time, 15, 39)
 sensor_df$sensor_time <- gsub("T", " ", sensor_df$sensor_time)
 
 sensor_df$value <- substr(sensor_df$value, 10, 14)
@@ -72,8 +72,12 @@ logs
 ## Roads/Fields segmentation
 
 ```{r message=FALSE, warning=FALSE}
-fields <- fread("P2/GIS_parcelles_soil_type_added.csv");fields
-roads <- fread("P2/roads_p2.csv");roads
+fields <- fread("P2/fields.csv")
+fields <- as.data.frame(sapply(fields, function(x) {x <- gsub("\"","",x)}))
+fields
+roads <- fread("P2/roads.csv")
+roads <- as.data.frame(sapply(roads, function(x) {x <- gsub("\"","",x)}))
+roads
 ```
 
 ### ROADS
@@ -87,6 +91,8 @@ names(roads)[4] <- "latitude"
 names(roads)[5] <- "longitude"
 names(roads)[6] <- "speed"
 names(roads)[7] <- "road_sections"
+
+roads <- as.data.frame(sapply(roads, function(x) {x <- gsub("\"","",x)}))
 
 roads$road_sections <- gsub("portion", "", roads$road_sections) %>%
                         as.numeric()
@@ -112,11 +118,11 @@ min(roads$date_time);max(roads$date_time) # aller/retours (not that informative)
 roads_querer <- function (section, round_type){ # OUi oui querer
   
   # Subsetting the roads dataset 
-  aller_1 <- roads[roads$road_sections == section & roads$round==round_type ,]
+  queried_vals <- roads[roads$road_sections == 1 & roads$round=="aller",]
   
   # Using logs subset to subset sensor data 
-  sensor_df_p2 <- sensor_df[sensor_df$sensor_time >= min(aller_1$date_time) &
-                          sensor_df$sensor_time <= max(aller_1$date_time),]
+  sensor_df_p2 <- sensor_df[sensor_df$sensor_time >= min(queried_vals$date_time) &
+                          sensor_df$sensor_time <= max(queried_vals$date_time),]
   
   # Changing df names (for secure)
   subset_sensor <- sensor_df_p2
@@ -125,21 +131,33 @@ roads_querer <- function (section, round_type){ # OUi oui querer
   # While statement to affect lats/longs and speed to dedicated timestamps
   j=1
   for(i in 1:nrow(subset_sensor)) {
-    while(subset_sensor$sensor_time[i] > aller_1$date_time[j]) {
+    while(subset_sensor$sensor_time[i] > queried_vals$date_time[j]) {
       j=j+1
     }
-      subset_sensor$lat[i] = aller_1$latitude[j]
-      subset_sensor$long[i] = aller_1$longitude[j]
-      subset_sensor$speed[i] = aller_1$speed[j]
-      subset_sensor$road_sections[i] = aller_1$road_sections[j]
-      subset_sensor$round[i] = aller_1$round[j]
+      subset_sensor$lat[i] = queried_vals$latitude[j]
+      subset_sensor$long[i] = queried_vals$longitude[j]
+      subset_sensor$speed[i] = queried_vals$speed[j]
+      subset_sensor$road_sections[i] = queried_vals$road_sections[j]
+      subset_sensor$round[i] = queried_vals$round[j]
     #print(i) debugging tool, if needed 
   }
   return(subset_sensor)
 }
 
-road_sec <- roads_querer(2, "aller")
-road_sec
+road_1_A <- roads_querer(1, "aller")
+write.csv(road_1_A, "road_1_A.csv")
+
+
+road_2_A <- roads_querer(2, "aller")
+write.csv(road_2_A, "road_2_A.csv")
+
+
+road_3_A <- roads_querer(3, "aller")
+write.csv(road_3_A, "road_3_A.csv")
+
+road_4_A <- roads_querer(4, "aller") # Too long - don't run 
+write.csv(road_4_A, "road_4_A.csv")
+
 ```
 #### Roads mapping
 
@@ -164,7 +182,6 @@ roads_map <- leaflet(road_sec) %>%
 roads_map
 ```
 
-<<<<<<< HEAD
 -------------------
  
 Val's 
@@ -240,14 +257,18 @@ fields_querer <- function (fieldId){ # Oui oui querer
       subset_sensor$vitesse[i] = field$speed[j]
       subset_sensor$field_id[i] = field$field_id[j]
       subset_sensor$soil_type[i] = field$soil_type[j]
-      print(i) #debugging tool, if needed !!!
+      #print(i) #debugging tool, if needed !!!
   }
   return(subset_sensor)
 }
 
-def_field <- fields_querer(1) # Querying field 1 
-#def_field <- subset_sensor ### A éliminer dès relance boucle 
-min(def_field$value);max(def_field$value)
+field_1 <- fields_querer(1) # Querying field 1 - Field sensor data not completed here
+write.csv(field_1, "field_1.csv")
+
+field_43 <- fields_querer(43) # Querying field 1 
+write.csv(field_43, "field_43.csv") 
+
+min(field_1$sensor_time);max(field_1$sensor_time)
 ```
 
 #### Fields Mapping
@@ -255,22 +276,23 @@ min(def_field$value);max(def_field$value)
 ```{r message=FALSE, warning=FALSE}
 library(viridis)
 library(leaflet)
-domain <- range(def_field$value)
-
-# make palette
-pal <- colorNumeric(palette = viridis(3), domain = domain)
+domain <- range(field_1$value)
 soil_rasters <- raster("classif_sol.tif",prefer_proj = epsg3857)
+# make palette
+
+field_1$lat <- as.numeric(field_1$lat)
+field_1$long <- as.numeric(field_1$long)
+pal <- colorNumeric(palette = viridis(3), domain = domain)
 rasters_pal <- colorNumeric(c("#43A9F2", "#F1D674", "#F46C6A"), values(soil_rasters),na.color = "transparent")
 ```
 
  
 ```{r}
-
-fields_map <- leaflet(def_field) %>% addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
+fields_map <- leaflet(field_1) %>% addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
                       options = providerTileOptions(noWrap = TRUE),  group = "Basic Layer(default)") %>%
-                addCircleMarkers(radius = ~(value-330), color = ~pal(value), 
+                addCircleMarkers(lng = ~long, lat = ~lat,radius = ~(value-330), color = ~pal(value), 
                         fillColor = ~pal(value), opacity = 0.2,
-                        label = paste0(def_field$value, " - " ,def_field$soil_type), group = "Values") %>%
+                        label = paste0(field_1$value, " - " ,field_1$soil_type), group = "Values") %>%
                 addRasterImage(soil_rasters, colors = rasters_pal, opacity = 0.8, group = "Soil types") %>%
                 addLegend(position = "topright",colors = c("#43A9F2", "#F1D674", "#F46C6A"),
                          labels = c("Argileux","Moyen","Caillouteux"), opacity = 0.8,title = "Soil type classification", 
