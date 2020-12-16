@@ -188,58 +188,38 @@ min(fields$date_time);max(fields$date_time) # Aller/retours considerated - not i
 ```
 
 ### Fields query fun 
+
 ```{r}
-# fields_query <- function (field_id){
-#   
-#   # Subsetting the roads dataset 
-#   field <- fields[fields$field_id == section,]
-#   
-#   # Using logs subset to subset sensor data 
-#   sensor_df_p2 <- sensor_df[sensor_df$sensor_time >= min(field$date_time) &
-#                           sensor_df$sensor_time <= max(field$date_time),]
-#   
-#   # Changing df names (for secure)
-#   subset_sensor <- sensor_df_p2
-#   roads_logs <- roads
-#   
-#   # While statement to affect lats/longs and speed to dedicated timestamps
-#   j=1
-#   for(i in 1:nrow(subset_sensor)) {
-#     while(subset_sensor$sensor_time[i] > logs$date_time[j]) {
-#       j=j+1
-#     }
-#       subset_sensor$lat[i] = logs$latitude[j]
-#       subset_sensor$long[i] = logs$longitude[j]
-#       subset_sensor$vitesse[i] = logs$speed[j]
-#     #print(i) debugging tool, if needed 
-#   }
-#   return(subset_sensor)
-# }
-
 # Subsetting the roads dataset 
-field <- fields[fields$field_id == 1,]
+fields_querer <- function (fieldId){ # Oui oui querer 
+  field <- fields[fields$field_id == fieldId,]
 
-# Using logs subset to subset sensor data 
-subseted_sensor <- sensor_df[sensor_df$sensor_time >= min(field$date_time) &
-                        sensor_df$sensor_time <= max(field$date_time),]
-
-# Changing df names (for secure)
-subset_sensor <- subseted_sensor
-
-# While statement to affect lats/longs and speed to dedicated timestamps
-j=1
-for(i in 1:nrow(subset_sensor)) {
-  while(subset_sensor$sensor_time[i] > field$date_time[j]) {
-    j=j+1
+  # Using logs subset to subset sensor data 
+  subseted_sensor <- sensor_df[sensor_df$sensor_time >= min(field$date_time) &
+                          sensor_df$sensor_time <= max(field$date_time),]
+  
+  # Changing df names (for secure)
+  subset_sensor <- subseted_sensor
+  
+  # While statement to affect lats/longs and speed to dedicated timestamps
+  j=1
+  for(i in 1:nrow(subset_sensor)) {
+    while(subset_sensor$sensor_time[i] > field$date_time[j]) {
+      j=j+1
+    }
+      subset_sensor$lat[i] = field$latitude[j]
+      subset_sensor$long[i] = field$longitude[j]
+      subset_sensor$vitesse[i] = field$speed[j]
+      subset_sensor$field_id[i] = field$field_id[j]
+      subset_sensor$soil_type[i] = field$soil_type[j]
+      print(i) #debugging tool, if needed !!!
   }
-    subset_sensor$lat[i] = field$latitude[j]
-    subset_sensor$long[i] = field$longitude[j]
-    subset_sensor$vitesse[i] = field$speed[j]
-    subset_sensor$field_id[i] = field$field_id[j]
-    subset_sensor$soil_type[i] = field$soil_type[j]
-    print(i) #debugging tool, if needed !!!
+  return(subset_sensor)
 }
-min(subset_sensor$value);max(subset_sensor$value)
+
+def_field <- fields_querer(1) # Querying field 1 
+
+min(def_field$value);max(def_field$value)
 ```
 
 ### Mapping
@@ -247,7 +227,7 @@ min(subset_sensor$value);max(subset_sensor$value)
 ```{r}
 library(viridis)
 library(leaflet)
-domain <- range(subset_sensor$value)
+domain <- range(def_field$value)
 
 # make palette
 pal <- colorNumeric(palette = viridis(3), domain = domain)
@@ -256,11 +236,11 @@ pal <- colorNumeric(palette = viridis(3), domain = domain)
  
 ```{r}
 
-map <- leaflet(subset_sensor) %>% addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
+map <- leaflet(def_field) %>% addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
                       options = providerTileOptions(noWrap = TRUE)) %>%
        addCircleMarkers(radius = ~(value-330), color = ~pal(value), 
                         fillColor = ~pal(value), opacity = 0.2,
-                        label = paste(subset_sensor$value))
+                        label = paste0(def_field$value, " - " ,def_field$soil_type))
        
 map
 ```
