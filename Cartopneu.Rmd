@@ -190,6 +190,9 @@ minmax$min=0
 minmax$max=0
 minmax$min[minindex]=1
 minmax$max[maxindex]=1
+
+road_sec$value
+
 ```
 
 -------------------
@@ -332,65 +335,9 @@ fg <- plot_ly(x=~road_sec$sensor_time, y=road_sec$value, alpha = 0.4,
 fg
 ```
 
-```{r}
-road_sec$id <- 1:nrow(road_sec)
-```
 
 
-```{r}
-library(pracma)
-road_sec$value <- as.numeric(road_sec$value)
-pracma::findpeaks(as.numeric(road_sec[4621:6435,]$value), minpeakheight = 320) # Check which road sec used ! 
-```
 
-
-```{r}
-fg <- plot_ly(x=~join_parcelles$date_time, y=~join_parcelles$value, alpha = 0.4,
-              colors = ~join_parcelles$`ID Culture`,
-              mode = 'lines', text = paste("days from today"))
-fg
-```
-
-- Min/Max locaux avec dérivés 
-- XXX
-- Histogramme // 2 sortes de pics 
-
-
-```{r}
-library(xts)
-d1 <- xts(splinefun(join_parcelles$date_time, join_parcelles$value)(join_parcelles$date_time, 1), join_parcelles$date_time)
-sensor_df <- cbind(join_parcelles, d1)
-
-sensor_df$value <- as.numeric(sensor_df$value)
-sensor_df$date_time <- as.POSIXct(sensor_df$date_time)
-
-fg <- plot_ly(x=~sensor_df$date_time, y=~sensor_df$value, alpha = 0.4,
-              mode = 'lines', text = paste("days from today"))
-fg
-fg1 <- plot_ly(x=~sensor_df$date_time, y=~sensor_df$value, alpha = 0.4,
-              mode = 'lines', text = paste("days from today"))
-
-fg1
-```
-
-```{r}
-roads
-```
-
-
-```{r}
-subset_sensor_df <- sensor_df[1:100,]
-
-subset_sensor_df$sensor_time <- as.POSIXct(subset_sensor_df$sensor_time)
-subset_sensor_df$sensor_time <- format(subset_sensor_df$sensor_time,"%Y-%m-%d %H:%M:%OS3")
-
-fg <- plot_ly(x=~subset_sensor_df$sensor_time, y=~subset_sensor_df$value, alpha = 0.4,
-              mode = 'markers', text = paste("days from today"))
-fg  %>%
-layout(paper_bgcolor='#5875D5',
-       plot_bgcolor='#5875D5')
-fg
-```
 
 - largeur pic : vitesse (intervale pic) // compensation de la perte de données due à la déformation 
 - graphes de validation 
