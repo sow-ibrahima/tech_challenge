@@ -76,8 +76,8 @@ fields <- fread("P2/GIS_parcelles_soil_type_added.csv");fields
 roads <- fread("P2/roads_p2.csv");roads
 ```
 
-
-### Roads pre-processing
+### ROADS
+#### Roads pre-processing
 
 ```{r}
 names(roads)[1] <- "date_time"
@@ -106,7 +106,7 @@ roads
 min(roads$date_time);max(roads$date_time) # aller/retours (not that informative)
 ```
 
-### Roads query fun 
+#### Roads query fun 
 ```{r}
 # Segmentation par requêtes - aller 1 ici 
 roads_querer <- function (section, round_type){ # OUi oui querer
@@ -125,12 +125,14 @@ roads_querer <- function (section, round_type){ # OUi oui querer
   # While statement to affect lats/longs and speed to dedicated timestamps
   j=1
   for(i in 1:nrow(subset_sensor)) {
-    while(subset_sensor$sensor_time[i] > logs$date_time[j]) {
+    while(subset_sensor$sensor_time[i] > aller_1$date_time[j]) {
       j=j+1
     }
-      subset_sensor$lat[i] = logs$latitude[j]
-      subset_sensor$long[i] = logs$longitude[j]
-      subset_sensor$speed[i] = logs$speed[j]
+      subset_sensor$lat[i] = aller_1$latitude[j]
+      subset_sensor$long[i] = aller_1$longitude[j]
+      subset_sensor$speed[i] = aller_1$speed[j]
+      subset_sensor$road_sections[i] = aller_1$road_sections[j]
+      subset_sensor$round[i] = aller_1$round[j]
     #print(i) debugging tool, if needed 
   }
   return(subset_sensor)
@@ -139,7 +141,7 @@ roads_querer <- function (section, round_type){ # OUi oui querer
 road_sec <- roads_querer(2, "aller")
 road_sec
 ```
-### Roads mapping
+#### Roads mapping
 
 ```{r}
 library(viridis)
@@ -162,7 +164,31 @@ roads_map <- leaflet(road_sec) %>%
 roads_map
 ```
 
-### Fields pre-processing
+-------------------
+
+Val's 
+
+```{r}
+road_sec$value
+library(quantmod)
+maxindex=findPeaks(road_sec$value[30:200])
+minindex=findValleys(road_sec$value[30:200])
+```
+
+```{r}
+minmax=data.frame(value=road_sec$value)
+minmax$min=0
+minmax$max=0
+minmax$min[minindex]=1
+minmax$max[maxindex]=1
+```
+
+
+----------
+
+
+### FIELDS 
+#### Fields pre-processing
 
 ```{r}
 names(fields)[1] <- "date_time"
@@ -187,7 +213,7 @@ fields
 min(fields$date_time);max(fields$date_time) # Aller/retours considerated - not informative !!!
 ```
 
-### Fields query fun 
+#### Fields query fun 
 
 ```{r}
 # Subsetting the roads dataset 
@@ -222,7 +248,7 @@ def_field <- fields_querer(1) # Querying field 1
 min(def_field$value);max(def_field$value)
 ```
 
-### Mapping
+#### Fields Mapping
 
 ```{r}
 library(viridis)
@@ -248,60 +274,29 @@ map
 
 ## Plot_ly 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 library(plotly)
-mysensor_df$date_time <- as.POSIXct(mysensor_df$date_time)
 ```
 
 ```{r}
-fg <- plot_ly(x=~mysensor_df$date_time, y=mysensor_df$value, alpha = 0.4,
-              mode = 'markers', text = paste("days from today"))
+fg <- plot_ly(x=~road_sec$sensor_time, y=road_sec$value, alpha = 0.4,
+              mode = 'lines', text = road_sec$id)
 fg
 ```
 
-```{r message=FALSE, warning=FALSE}
-my_parcelles <- read_csv("P2/GIS_parcelles.csv");my_parcelles
-roads <- fread("P2/roads_p2.csv");roads
-```
-
 ```{r}
-names(my_parcelles)[1] <- "date_time"
-names(roads)[1] <- "date_time"
-  
-names(my_parcelles)[2] <- "date_gnss"
-names(roads)[2] <- "date_gnss"
-  
-names(my_parcelles)[3] <- "time_gnss"
-names(roads)[3] <- "time_gnss"
-
-names(my_parcelles)[4] <- "time_gnss"
-names(roads)[4] <- "time_gnss"
-
-names(my_parcelles)[5] <- "time_gnss"
-names(roads)[5] <- "time_gnss"
-
-names(my_parcelles)[6] <- "time_gnss"
-names(roads)[6] <- "time_gnss"
-
-table(my_parcelles$`ID Culture`)
-roads
-```
-
-```{r}
-mysensor_df$date_time <- as.character(mysensor_df$date_time)
-my_parcelles$date_time <- as.character(my_parcelles$date_time)
-```
-
-```{r}
-join_parcelles <- merge(mysensor_df, my_parcelles, by="date_time")
-table(join_parcelles$`ID Culture`)
+road_sec$id <- 1:nrow(road_sec)
 ```
 
 
+```{r}
+library(pracma)
+road_sec$value <- as.numeric(road_sec$value)
+pracma::findpeaks(as.numeric(road_sec[4621:6435,]$value), minpeakheight = 320) # Check which road sec used ! 
+```
+
 
 ```{r}
-join_parcelles$date_time <- as.POSIXct(join_parcelles$date_time)
-
 fg <- plot_ly(x=~join_parcelles$date_time, y=~join_parcelles$value, alpha = 0.4,
               colors = ~join_parcelles$`ID Culture`,
               mode = 'lines', text = paste("days from today"))
@@ -311,10 +306,6 @@ fg
 - Min/Max locaux avec dérivés 
 - XXX
 - Histogramme // 2 sortes de pics 
-```{r}
-library(pspline)
-deriv_x <- predict(sm.spline(join_parcelles$date_time, as.numeric(join_parcelles$value)), time, 1)
-```
 
 
 ```{r}
@@ -338,12 +329,6 @@ fg1
 roads
 ```
 
-
-```{r}
-library(pracma)
-sensor_df$value <- as.numeric(sensor_df$value)
-pracma::findpeaks(as.numeric(sensor_df[1:100,]$value))
-```
 
 ```{r}
 subset_sensor_df <- sensor_df[1:100,]
