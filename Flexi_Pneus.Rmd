@@ -33,22 +33,27 @@ library(shinyWidgets)
 library(waiter)
 library(htmltools)
 library(tidyverse)
+library(readr)
+library(data.table)
+library(stringr)
 ```
 
 
 ```{r global, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # Data loading 
+# 2nd passage
+sensor_df <- fread("sensor_df.csv", header = T) %>% subset(select = -(V1))
+options(digits.secs = 3) 
+# sensor_df$sensor_time <- as.POSIXct(sensor_df$sensor_time)
+# sensor_df$value <- as.numeric(sensor_df$value)
+```
+
+
+```{r}
 ## Main dataset 
 mydata <- read.csv("netflex5.csv")
 mydata$Show_type[is.na(mydata$Show_type)] <- 'undefined'
 mydata$Genre[is.na(mydata$Genre)] <- 'undefined'
-
-## Matrix of genres 
-#mat <- read.csv("src/data/mat.csv",row.names = 1, encoding = "utf8")
-
-## Shapefile data disabled 
-# countriesborders <- readOGR("src/TM_WORLD_BORDERS_SIMPL-0.3.shp")
-
 ```
 
 
@@ -156,11 +161,125 @@ Row
 # Explanatory visualization {data-orientation=column}
 ## Input {.sidebar}
 
+```{r}
+selectInput("road_X", "Please choose a section", c("Section_1", "Section_2", "Section_3", "total_parcours"))
+
+sliderInput("obs", "Number of observations:",
+    min = 10, max = 30000, value = 10000)
+
+# sliderInput("timeRange", label = "Time range",
+#                    min = as.POSIXct("2011-06-04 12:00:00"),
+#                    max = as.POSIXct("2011-08-10 14:00:00"),
+#                    value = c(as.POSIXct("2011-06-04 12:00:00"),
+#                              as.POSIXct("2011-08-10 14:00:00")))
+
+radioButtons(
+  "mode",
+  "Please choose a drawing mode",
+  choices = c("markers", "lines")
+)
+
+actionButton("update", "Update range")
+
+
+```
+
 ## Column {.tabset}
 
-### Temporal viz 
-### Temporal viz 
-### Temporal viz 
+### Roads mapping
+
+```{r message=FALSE, warning=FALSE}
+library(viridis)
+library(leaflet)
+
+
+renderLeaflet({
+road_X <- read.csv(paste0(as.character(input$road_X),".csv"))
+
+#read_csv(paste0(input$road_X,".csv"))
+
+domain <- range(road_X$value)
+
+# make palette
+pal <- colorNumeric(palette = viridis(3), domain = domain)
+
+leaflet(road_X) %>%
+                addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
+                options = providerTileOptions(noWrap = TRUE)) %>%
+                setView(lat=43.5398,lng=3.8607, 14.5) %>%
+                addCircleMarkers(radius = ~(value-350), color = ~pal(value),
+                                fillColor = ~pal(value), opacity = 0.2,
+                                label = paste0(road_X$value, " - ",road_X$sensor_time))
+})
+```
+
+### Fields mapping
+
+```{r message=FALSE, warning=FALSE}
+library(viridis)
+library(leaflet)
+library(raster)
+library(rgdal)
+
+renderLeaflet({
+
+myfields <- read_csv("myfields.csv") %>% subset(select = -c(X1))
+
+domain <- range(myfields$value)
+soil_rasters <- raster("classif_sol.tif",prefer_proj = epsg3857)
+# make palette
+
+myfields$lat <- as.numeric(myfields$lat)
+myfields$long <- as.numeric(myfields$long)
+pal <- colorNumeric(palette = viridis(3), domain = domain)
+rasters_pal <- colorNumeric(c("#43A9F2", "#F1D674", "#F46C6A"), values(soil_rasters),na.color = "transparent")
+
+
+parcellaire <- readOGR("P2/Parcellaire_chapitre/Culture attributs.shp")
+
+larzats <- parcellaire[parcellaire$Parcella_1=="Larzat",] %>% spTransform(CRS("+proj=longlat +datum=WGS84"))
+factpal2 <- colorFactor(viridis(2, option = "magma", direction = -1), larzats$ID.Culture, reverse = T)
+
+# lat=43.5483,lng=3.8437, 17 parcelles
+
+leaflet(myfields) %>%
+                addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
+                      options = providerTileOptions(noWrap = TRUE),  group = "Basic Layer(default)") %>%
+                setView(lat=43.5483,lng=3.8437, 17) %>%
+
+                leaflet::addPolygons(data=larzats,stroke=TRUE,color = "white",
+                                     fillColor = ~factpal2(larzats$ID.Culture), opacity = 1,
+                                     group = "Parcellaire") %>%
+
+                addCircleMarkers(lng = ~long, lat = ~lat,radius = ~(value-350), color = ~pal(value),
+                        fillColor = ~pal(value), opacity = 0.2,
+                        label = paste0(myfields$value, " - " ,myfields$soil_type), group = "Values") %>%
+
+                addRasterImage(soil_rasters, colors = rasters_pal, opacity = 0.8, group = "Soil types") %>%
+
+                addLegend(position = "topright",colors = c("#43A9F2", "#F1D674", "#F46C6A"),
+                         labels = c("Argileux","Moyen","Caillouteux"), opacity = 0.8,title = "Soil type classification",
+                          group = "Soil types") %>%
+                addLayersControl(baseGroups = c("Basic Layer (default)"),
+                                 overlayGroups = c("Values","Soil types", "Parcellaire"),
+                                 position = "topleft",options = layersControlOptions(collapsed = T)
+  )
+})
+```
+
+### Temporal series plotting
+```{r}
+library(plotly)
+plotly::renderPlotly({
+road_X <- read.csv(paste0(as.character(input$road_X),".csv"))
+
+# road_X <- read.csv("Section_1.csv")
+
+plot_ly(road_X[1:as.numeric(input$obs), ], x=~as.POSIXct(sensor_time), y=~as.numeric(value), alpha = 0.4,
+                mode = input$mode, color = ~observations)
+ })
+```
+
 # Analysis {data-orientation=column}
 ## Input {.sidebar}
 
