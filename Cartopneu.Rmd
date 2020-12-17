@@ -366,7 +366,149 @@ fg
 ### Analyse stats 
 
 ```{r}
-field_1_indics <- fread("tech_challenge/indicateurs_field1.csv")
+field_1_indics <- fread("indicateurs_field1.csv", sep = ",");field_1_indics
+field_1_indics <- data.frame(lapply(field_1_indics, function(x) {
+                  gsub("\"\"", " ", x)
+             })) %>% subset(select = -c(X..largeur_sec...))
+
+
+names(field_1_indics)[1] <- "id_pic"
+names(field_1_indics)[2] <- "soil_type"
+names(field_1_indics)[3] <- "speed"
+names(field_1_indics)[4] <- "ming_value"
+names(field_1_indics)[5] <- "ming_time"
+names(field_1_indics)[6] <- "max_value"
+names(field_1_indics)[7] <- "max_time"
+names(field_1_indics)[8] <- "mind_value"
+names(field_1_indics)[9] <- "mind_time"
+names(field_1_indics)[10] <- "amplitude"
+names(field_1_indics)[11] <- "largeur"
+field_1_indics
+
+```
+```{r}
+# Automation failed
+# mycols <- c("ming_value","max_time", "mind_time")
+# field_1_indics[mycols] <- lapply(field_1_indics[mycols], as.POSIXct)
+options(digits.secs = 3) 
+field_1_indics$ming_time <- as.POSIXct(field_1_indics$ming_time, format="%Y-%m-%d %H:%M:%OS")
+field_1_indics$max_time <- as.POSIXct(field_1_indics$max_time, format="%Y-%m-%d %H:%M:%OS")
+field_1_indics$mind_time <- as.POSIXct(field_1_indics$mind_time, format="%Y-%m-%d %H:%M:%OS")
+
+field_1_indics$id_pic <- gsub("\"", "", field_1_indics$id_pic)
+field_1_indics$largeur <- gsub("\"", "", field_1_indics$largeur)
+
+mycols <- c("id_pic","speed","ming_value", "max_value", "mind_value","amplitude", "largeur")
+field_1_indics[mycols] <- lapply(field_1_indics[mycols], as.numeric)
+r_fields_inds <- field_1_indics[-36,] %>% subset(select = -c(ming_time, max_time,mind_time))
+
+```
+
+```{r}
+library(FactoMineR)
+library(factoextra)
+
+res.pca <- PCA(r_fields_inds, quali.sup = 2, quanti.sup = c(1))
+# fviz_pca_var(res.pca)
+```
+
+```{r}
+lm_mod <- lm(max_value ~.,field_1_indics)
+summary(lm_mod)
+```
+
+```{r}
+shapiro.test(lm_mod$residuals)
+shapiro.test(field_1_indics$max_value)
+```
+
+```{r}
+#bartlett.test(lm_mod$residuals ~ soil_type, data = field_1_indics)
+bartlett.test(max_value ~ soil_type, data = field_1_indics)
+```
+
+
+```{r}
+res <- var.test(max_value ~ soil_type, data = field_1_indics)
+res
+```
+
+#### Stats routes
+```{r}
+road2_indics <- fread("indicateurs_road2_tests.csv", sep = ",");road2_indics
+```
+
+```{r}
+road2_indics <- data.frame(lapply(road2_indics, function(x) {
+                  gsub("\"\"", " ", x)
+             }));road2_indics
+
+names(road2_indics)[1] <- "id_pic"
+names(road2_indics)[2] <- "speed"
+names(road2_indics)[3] <- "soil_type"
+names(road2_indics)[4] <- "ming_value"
+names(road2_indics)[5] <- "ming_time"
+names(road2_indics)[6] <- "max_value"
+names(road2_indics)[7] <- "max_time"
+names(road2_indics)[8] <- "mind_value"
+names(road2_indics)[9] <- "mind_time"
+names(road2_indics)[10] <- "amplitude"
+names(road2_indics)[11] <- "largeur"
+road2_indics
+
+```
+
+```{r}
+road2_indics <- road2_indics[,c("id_pic", "soil_type", "speed", "ming_value", "ming_time", "max_value", 
+                                "max_time", "mind_value", "mind_time", "amplitude", "largeur")]
+
+options(digits.secs = 3) 
+road2_indics$ming_time <- as.POSIXct(road2_indics$ming_time, format="%Y-%m-%d %H:%M:%OS")
+road2_indics$max_time <- as.POSIXct(road2_indics$max_time, format="%Y-%m-%d %H:%M:%OS")
+road2_indics$mind_time <- as.POSIXct(road2_indics$mind_time, format="%Y-%m-%d %H:%M:%OS")
+
+road2_indics$id_pic <- gsub("\"", "", road2_indics$id_pic)
+road2_indics$largeur <- gsub("\"", "", road2_indics$largeur)
+
+mycols <- c("id_pic","speed","ming_value", "max_value", "mind_value","amplitude", "largeur")
+road2_indics[mycols] <- lapply(road2_indics[mycols], as.numeric)
+r_road2_inds <- subset(road2_indics, select = -c(ming_time, max_time,mind_time))
+r_road2_inds
+```
+
+## Binding stats roads-fields 
+```{r}
+my_stats_df <- rbind(r_road2_inds, r_fields_inds)
+```
+
+```{r}
+res.pca <- PCA(my_stats_df, quali.sup = 2, quanti.sup = c(1))
+```
+
+```{r}
+lm_mod <- lm(max_value ~ soil_type,my_stats_df)
+summary(lm_mod)
+```
+
+
+```{r}
+shapiro.test(lm_mod$residuals)
+shapiro.test(my_stats_df$max_value)
+```
+
+```{r}
+#bartlett.test(lm_mod$residuals ~ soil_type, data = field_1_indics)
+bartlett.test(max_value ~ soil_type, data = my_stats_df)
+```
+
+```{r}
+table(my_stats_df$soil_type)
+```
+
+
+```{r}
+res <- var.test(max_value, soil_type, data = my_stats_df)
+res
 ```
 
 ## Comments and suggestions 
