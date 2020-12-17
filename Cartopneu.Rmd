@@ -112,8 +112,8 @@ min(roads$date_time);max(roads$date_time) # aller/retours (not that informative)
 roads_querer <- function (section, round_type){ # OUi oui querer
   
   # Subsetting the roads dataset 
-  aller_1 <- roads[roads$road_sections == section & roads$round==round_type ,]
-  
+  #aller_1 <- roads[roads$road_sections == section & roads$round==round_type ,]
+  aller_1=roads
   # Using logs subset to subset sensor data 
   sensor_df_p2 <- sensor_df[sensor_df$sensor_time >= min(aller_1$date_time) &
                           sensor_df$sensor_time <= max(aller_1$date_time),]
@@ -140,13 +140,16 @@ roads_querer <- function (section, round_type){ # OUi oui querer
 
 road_sec <- roads_querer(2, "aller")
 road_sec
+
+write.csv(def_field, "field_1.csv", row.names=F)
 ```
 #### Roads mapping
 
 ```{r}
+
 library(viridis)
 library(leaflet)
-domain <- range(road_sec$value)
+domain <- range(roads$value)
 
 # make palette
 pal <- colorNumeric(palette = viridis(3), domain = domain)
@@ -173,15 +176,18 @@ Reconnaissance des pics et de leurs caractéristiques.
 
 ```{r}
 #road_sec$value
+roads <- read.csv("P2/roads_p2.csv")
 library(quantmod)
-part_road_sec=road_sec #road_sec, seulement l'allé de la seconde section de la route
+part_road_sec=roads #road_sec, seulement l'allé de la seconde section de la route
+part_road_sec$value=as.numeric(part_road_sec$value)
+part_road_sec$date_time=as.POSIXct(part_road_sec$date_time)
 maxindex=findPeaks(part_road_sec$value)
 minindex=findValleys(part_road_sec$value)
 ```
 
 ```{r}
 minmax=data.frame(value=part_road_sec$value)
-minmax$time=part_road_sec$sensor_time
+minmax$time=part_road_sec$date_time
 minmax$id=part_road_sec$id
 minmax$vitesse=part_road_sec$speed
 minmax$min=0
@@ -192,6 +198,17 @@ minmax$max[maxindex-1]=1
 #part_road_sec$value
 
 ```
+
+
+Il faut choisir un seuil. Ce seuil doit être plus bas que le plus petit des pics et plus haut que le plus grand des plateaux.
+```{r}
+library(plotly)
+fg <- plot_ly(x=~part_road_sec$time, y=part_road_sec$value, alpha = 0.4,
+               text = part_road_sec$id)
+fg
+
+```
+
 
 Seuil (ce seuil doit différencier les pics et les "plateau").
 ```{r}
