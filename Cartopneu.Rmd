@@ -42,6 +42,8 @@ sensor_df$value <- as.numeric(sensor_df$value)
   
 #sensor_1_P2$sensor_time <- gsub("Z", "", sensor_1_P2$sensor_time)
 sensor_df
+
+write.csv(sensor_df, "sensor_df.csv")
 ```
 
 ## Importing simple log files  
@@ -162,9 +164,36 @@ write.csv(road_4_A, "road_4_A.csv")
 #### Roads mapping
 
 ```{r}
+road_1 <- read_csv("Section_1.csv")
+road_2 <- read_csv("Section_2.csv")
+road_3 <- read_csv("Section_3.csv")
+
+road_3$observations <- total_parcours$observations[nrow(road_2)+1:nrow(road_3)]
+total_parcours <- rbind(road_1, road_2, road_3)
+write.csv(road_2, "Section_2.csv")
+total_parcours <- read_csv("total_parcours.csv") %>% subset(select = -c(X1, X1_1))
+
+total_parcours$observations <- 1:nrow(total_parcours)
+total_parcours$observations[1:2020] <- "sortie_MAS"
+total_parcours$observations[2021:5540] <- "Ligne-droite_Av_Palavas"
+total_parcours$observations[5541:6430] <- "Giratoire"
+total_parcours$observations[6431:8190] <- "Ligne-droite_D185" 
+total_parcours$observations[8191:8500] <- "Intersection" 
+total_parcours$observations[8501:8780] <- "Ligne-droite_D185" 
+total_parcours$observations[8781:8890] <- "Intersection" 
+total_parcours$observations[8891:11720] <- "Ligne-droite_D185" 
+total_parcours$observations[11721:12350] <- "Giratoire"
+total_parcours$observations[12351:14330] <- "Ligne-droite_D185"
+total_parcours$observations[14331:nrow(total_parcours)] <- "Ligne-droite_D185"
+
+write.csv(total_parcours, "total_parcours.csv")
+```
+
+```{r message=FALSE, warning=FALSE}
+road_X <- read_csv("road_2_A.csv")
 library(viridis)
 library(leaflet)
-domain <- range(road_sec$value)
+domain <- range(road_X$value)
 
 # make palette
 pal <- colorNumeric(palette = viridis(3), domain = domain)
@@ -172,14 +201,13 @@ pal <- colorNumeric(palette = viridis(3), domain = domain)
 
  
 ```{r}
-roads_map <- leaflet(road_sec) %>% 
+leaflet(road_X) %>% 
                 addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
                 options = providerTileOptions(noWrap = TRUE)) %>%
+                setView(lat=43.5398,lng=3.8607, 14.5) %>%
                 addCircleMarkers(radius = ~(value-350), color = ~pal(value), 
                                 fillColor = ~pal(value), opacity = 0.2,
-                                label = paste(road_sec$value)) 
-
-roads_map
+                                label = paste(road_X$value)) 
 ```
 
 -------------------
@@ -202,7 +230,6 @@ minmax$max[maxindex]=1
 ```
 
 -------------------
-
 
 ### FIELDS 
 #### Fields pre-processing
@@ -237,11 +264,11 @@ min(fields$date_time);max(fields$date_time) # Aller/retours considerated - not i
 ```{r}
 # Subsetting the roads dataset 
 fields_querer <- function (fieldId){ # Oui oui querer 
-  field <- fields[fields$field_id == fieldId,]
+  field <- fields[fields$field_id == 42,]
 
   # Using logs subset to subset sensor data 
-  subseted_sensor <- sensor_df[sensor_df$sensor_time >= min(field$date_time) &
-                          sensor_df$sensor_time <= max(field$date_time),]
+  subseted_sensor <- sensor_df[sensor_df$sensor_time >= mean(field$date_time) &
+                          sensor_df$sensor_time <= "2020-11-13 00:00:00.001 CET",] # 00:00:00 for subsetting 
   
   # Changing df names (for secure)
   subset_sensor <- subseted_sensor
@@ -257,53 +284,90 @@ fields_querer <- function (fieldId){ # Oui oui querer
       subset_sensor$vitesse[i] = field$speed[j]
       subset_sensor$field_id[i] = field$field_id[j]
       subset_sensor$soil_type[i] = field$soil_type[j]
-      #print(i) #debugging tool, if needed !!!
+      print(i) #debugging tool, if needed !!!
   }
   return(subset_sensor)
 }
 
-field_1 <- fields_querer(1) # Querying field 1 - Field sensor data not completed here
-write.csv(field_1, "field_1.csv")
+# field_1 <- fields_querer(1) # Querying field 1 - Field sensor data not completed here
+# write.csv(field_1, "field_1.csv")
 
-field_43 <- fields_querer(43) # Querying field 1 
-write.csv(field_43, "field_43.csv") 
+# field_43 <- fields_querer(43) # Querying field 1 
+# write.csv(field_43, "field_43.csv") 
 
+
+table(fields$field_id)
 min(field_1$sensor_time);max(field_1$sensor_time)
 ```
 
 #### Fields Mapping
 
 ```{r message=FALSE, warning=FALSE}
+field_1 <- read_csv("field_1.csv") %>% subset(select = -c(X1, sensor_id))
+field_43 <- read_csv("field_43.csv") %>% subset(select = -c(X1, sensor_id))
+
+myfields <- rbind(field_1, field_43)
+write.csv(myfields, "myfields.csv")
 library(viridis)
 library(leaflet)
-domain <- range(field_1$value)
+library(raster)
+domain <- range(field_X$value)
 soil_rasters <- raster("classif_sol.tif",prefer_proj = epsg3857)
 # make palette
 
-field_1$lat <- as.numeric(field_1$lat)
-field_1$long <- as.numeric(field_1$long)
+field_X$lat <- as.numeric(field_X$lat)
+field_X$long <- as.numeric(field_X$long)
 pal <- colorNumeric(palette = viridis(3), domain = domain)
 rasters_pal <- colorNumeric(c("#43A9F2", "#F1D674", "#F46C6A"), values(soil_rasters),na.color = "transparent")
 ```
 
- 
-```{r}
-fields_map <- leaflet(field_1) %>% addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
+```{r message=FALSE, warning=FALSE}
+library(rgdal)
+parcellaire <- readOGR("P2/Parcellaire_chapitre/Culture attributs.shp")
+
+factpal2 <- colorFactor(viridis(2, option = "magma", direction = -1), larzats$ID.Culture, reverse = T) 
+
+larzats <- parcellaire[parcellaire$Parcella_1=="Larzat",] %>% spTransform(CRS("+proj=longlat +datum=WGS84"))
+# lat=43.5483,lng=3.8437, 17 parcelles 
+
+leaflet(field_X) %>% 
+                addProviderTiles(providers$CartoDB.DarkMatterNoLabels,
                       options = providerTileOptions(noWrap = TRUE),  group = "Basic Layer(default)") %>%
-                addCircleMarkers(lng = ~long, lat = ~lat,radius = ~(value-330), color = ~pal(value), 
+                setView(lat=43.5483,lng=3.8437, 17) %>%
+  
+                leaflet::addPolygons(data=larzats,stroke=TRUE,color = "white",
+                                     fillColor = ~factpal2(larzats$ID.Culture), opacity = 1,
+                                     group = "Parcellaire") %>%
+  
+                addCircleMarkers(lng = ~long, lat = ~lat,radius = ~(value-350), color = ~pal(value), 
                         fillColor = ~pal(value), opacity = 0.2,
-                        label = paste0(field_1$value, " - " ,field_1$soil_type), group = "Values") %>%
+                        label = paste0(field_X$value, " - " ,field_X$soil_type), group = "Values") %>%
+  
                 addRasterImage(soil_rasters, colors = rasters_pal, opacity = 0.8, group = "Soil types") %>%
+  
                 addLegend(position = "topright",colors = c("#43A9F2", "#F1D674", "#F46C6A"),
                          labels = c("Argileux","Moyen","Caillouteux"), opacity = 0.8,title = "Soil type classification", 
                           group = "Soil types") %>%
                 addLayersControl(baseGroups = c("Basic Layer (default)"),
-                                 overlayGroups = c("Values","Soil types"),
+                                 overlayGroups = c("Values","Soil types", "Parcellaire"),
                                  position = "topleft",options = layersControlOptions(collapsed = T)
   )
-fields_map
+
 ```
 
+## Plotly
+```{r}
+fg <- plot_ly(x=~minmax$time, y=minmax$value, alpha = 0.4,
+               text = paste(minmax$id, "  ", minmax$id_pic), color=as.character(minmax$id_pic))
+fg
+```
+
+
+### Analyse stats 
+
+```{r}
+field_1_indics <- fread("tech_challenge/indicateurs_field1.csv")
+```
 
 ## Comments and suggestions 
 
