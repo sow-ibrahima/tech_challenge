@@ -165,7 +165,7 @@ roads_map <- leaflet(road_sec) %>%
 roads_map
 ```
 
-<<<<<<< HEAD
+
 -------------------
 ##Récupération pics road
 
@@ -394,7 +394,7 @@ minmax$max[maxindex]=1
 
 
 ### Fields pre-processing
->>>>>>> main
+
 
 ```{r}
 names(fields)[1] <- "date_time"
